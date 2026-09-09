@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Préstamos</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0F2A2E">
+<style>
+  :root{
+    --bg:#0F2A2E;
+    --bg-soft:#153A3F;
+    --panel:#FFFFFF;
+    --panel-2:#F4F7F6;
+    --ink:#12201F;
+    --ink-soft:#5B6C6A;
+    --line:#E1E8E6;
+    --gold:#C99A3E;
+    --gold-dark:#A87F2E;
+    --ok:#2C7A55;
+    --ok-bg:#E6F4EC;
+    --warn:#B4562A;
+    --warn-bg:#FCE9DE;
+    --bad:#B23A3A;
+    --bad-bg:#FBE6E6;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--panel-2);color:var(--ink);}
+  h1,h2,h3{font-family:Georgia,'Times New Roman',serif;font-weight:600;margin:0;}
+  button{font-family:inherit;cursor:pointer;}
+  input,select,textarea{font-family:inherit;}
+
+  /* ---------- LOGIN ---------- */
+  #loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,var(--bg),#081b1e);}
+  .loginBox{background:var(--panel);padding:40px 36px;border-radius:16px;width:320px;box-shadow:0 20px 60px rgba(0,0,0,.35);}
+  .loginBox h1{font-size:28px;color:var(--bg);margin-bottom:4px;}
+  .loginBox p{color:var(--ink-soft);font-size:13px;margin:0 0 24px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:4px;}
+  .field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:#fff;color:var(--ink);}
+  .field textarea{resize:vertical;min-height:60px;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:8px;border:none;font-size:14px;font-weight:600;transition:transform .08s ease;}
+  .btn:active{transform:scale(.97);}
+  .btn-gold{background:var(--gold);color:#fff;}
+  .btn-gold:hover{background:var(--gold-dark);}
+  .btn-dark{background:var(--bg);color:#fff;}
+  .btn-dark:hover{background:var(--bg-soft);}
+  .btn-ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line);}
+  .btn-ghost:hover{background:var(--panel-2);}
+  .btn-danger{background:var(--bad-bg);color:var(--bad);}
+  .btn-block{width:100%;}
+  #loginError{color:var(--bad);font-size:13px;margin-top:10px;min-height:16px;}
+
+  /* ---------- APP SHELL ---------- */
+  #app{display:none;min-height:100vh;}
+  header.topbar{background:var(--bg);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+  header.topbar h1{font-size:20px;color:#fff;}
+  header.topbar .who{font-size:12px;color:#B9CFCC;}
+  nav.tabs{display:flex;gap:2px;background:var(--bg-soft);padding:0 24px;overflow-x:auto;}
+  nav.tabs button{background:transparent;color:#CFE3E0;border:none;padding:12px 16px;font-size:13px;font-weight:600;white-space:nowrap;border-bottom:3px solid transparent;}
+  nav.tabs button.active{color:#fff;border-bottom-color:var(--gold);}
+  main{max-width:1100px;margin:0 auto;padding:22px 18px 60px;}
+  .card{background:var(--panel);border-radius:var(--radius);padding:18px 20px;margin-bottom:16px;border:1px solid var(--line);}
+  .card h2{font-size:16px;margin-bottom:14px;color:var(--bg);}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:640px){.grid2{grid-template-columns:1fr;}}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;color:var(--ink-soft);font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:2px solid var(--line);}
+  td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  tr:hover td{background:var(--panel-2);}
+  .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+  .badge-ok{background:var(--ok-bg);color:var(--ok);}
+  .badge-warn{background:var(--warn-bg);color:var(--warn);}
+  .badge-bad{background:var(--bad-bg);color:var(--bad);}
+  .muted{color:var(--ink-soft);font-size:12px;}
+  .empty{padding:30px;text-align:center;color:var(--ink-soft);font-size:13px;}
+  .clickable{cursor:pointer;}
+  .clickable:hover{color:var(--gold-dark);text-decoration:underline;}
+
+  .modalBg{display:none;position:fixed;inset:0;background:rgba(15,42,46,.55);z-index:100;align-items:center;justify-content:center;padding:16px;}
+  .modalBg.show{display:flex;}
+  .modal{background:#fff;border-radius:14px;padding:24px;max-width:480px;width:100%;max-height:88vh;overflow-y:auto;}
+  .modal h3{font-size:18px;margin-bottom:16px;color:var(--bg);}
+  .modalClose{float:right;background:none;border:none;font-size:20px;color:var(--ink-soft);}
+
+  .statGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+  .stat .num{font-size:22px;font-weight:700;color:var(--bg);font-family:Georgia,serif;}
+  .stat .lab{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;}
+
+  #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg);color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;z-index:200;display:none;box-shadow:0 8px 24px rgba(0,0,0,.3);}
+  .checkline{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);margin:8px 0;}
+  .checkline input{width:auto;}
+  .planeChip{display:inline-block;padding:6px 12px;border:1px solid var(--line);border-radius:8px;font-size:12px;cursor:pointer;margin:3px;}
+  .planeChip.sel{background:var(--gold);color:#fff;border-color:var(--gold);}
+  .helpTxt{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="loginBox">
+    <h1>Préstamos</h1>
+    <p>Javicard · Gestión de préstamos</p>
+    <div class="field"><label>Usuario</label><input type="email" id="loginEmail" autocomplete="username" placeholder="tu@email.com"></div>
+    <div class="field"><label>Contraseña</label><input type="password" id="loginPass" autocomplete="current-password"></div>
+    <button class="btn btn-dark btn-block" onclick="doLogin()">Entrar</button>
+    <div id="loginError"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header class="topbar">
+    <h1>💰 Préstamos</h1>
+    <div class="row">
+      <span class="who" id="whoAmI"></span>
+      <button class="btn btn-ghost" style="color:#fff;border-color:#3a5a5a;padding:6px 12px;font-size:12px" onclick="doLogout()">Salir</button>
+    </div>
+  </header>
+  <nav class="tabs">
+    <button data-tab="inicio" onclick="switchTab('inicio')" class="active">Inicio</button>
+    <button data-tab="clientes" onclick="switchTab('clientes')">Clientes</button>
+    <button data-tab="prestamos" onclick="switchTab('prestamos')">Préstamos</button>
+    <button data-tab="planes" onclick="switchTab('planes')">Planes</button>
+    <button data-tab="config" onclick="switchTab('config')">Configuración</button>
+  </nav>
+  <main>
+
+    <!-- INICIO -->
+    <section id="tab-inicio">
+      <div class="statGrid" id="dashStats" style="margin-bottom:18px;"></div>
+      <div class="card">
+        <h2>⚠️ Atrasadas</h2>
+        <div id="listAtrasadas"></div>
+      </div>
+      <div class="card">
+        <h2>📅 Vencen hoy</h2>
+        <div id="listHoy"></div>
+      </div>
+      <div class="card">
+        <h2>🗓️ Próximos 7 días</h2>
+        <div id="list7dias"></div>
+      </div>
+    </section>
+
+    <!-- CLIENTES -->
+    <section id="tab-clientes" style="display:none">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <h2 style="margin:0">Clientes</h2>
+          <button class="btn btn-gold" onclick="openClienteModal()">+ Nuevo cliente</button>
+        </div>
+        <div class="field" style="margin-top:12px;max-width:300px"><input type="text" id="buscarCliente" placeholder="Buscar por nombre..." oninput="renderClientes()"></div>
+        <table style="margin-top:10px">
+          <thead><tr><th>Nombre</th><th>Teléfono</th><th>Mora</th><th>Préstamos</th><th></th></tr></thead>
+          <tbody id="tablaClientes"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- PRESTAMOS -->
+    <section id="tab-prestamos" style="display:none">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <h2 style="margin:0">Préstamos</h2>
+          <button class="btn btn-gold" onclick="openPrestamoModal()">+ Nuevo préstamo</button>
+        </div>
+        <table style="margin-top:12px">
+          <thead><tr><th>Cliente</th><th>Plan</th><th>Total</th><th>Cobrado</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="tablaPrestamos"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- PLANES -->
+    <section id="tab-planes" style="display:none">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <h2 style="margin:0">Planes / plantillas</h2>
+          <button class="btn btn-gold" onclick="openPlanModal()">+ Nuevo plan</button>
+        </div>
+        <p class="muted">Plantillas para agilizar la carga. La comisión es solo una sugerencia — siempre la podés cambiar al crear el préstamo.</p>
+        <table style="margin-top:8px">
+          <thead><tr><th>Nombre</th><th>Frecuencia</th><th>Cuotas</th><th>Comisión sug.</th><th></th></tr></thead>
+          <tbody id="tablaPlanes"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- CONFIG -->
+    <section id="tab-config" style="display:none">
+      <div class="card">
+        <h2>Mora por defecto</h2>
+        <p class="muted">Se sugiere este valor al crear un préstamo nuevo. Se puede ajustar por cada préstamo.</p>
+        <div class="grid2">
+          <div class="field">
+            <label>Tipo</label>
+            <select id="cfgMoraTipo">
+              <option value="porcentaje">% diario sobre saldo</option>
+              <option value="fijo">Monto fijo por día</option>
+            </select>
+          </div>
+          <div class="field">
+            <label id="cfgMoraValorLbl">Valor</label>
+            <input type="number" step="0.01" id="cfgMoraValor">
+          </div>
+        </div>
+        <button class="btn btn-dark" onclick="guardarConfig()">Guardar</button>
+      </div>
+      <div class="card">
+        <h2>Agregar usuario (empleado)</h2>
+        <p class="muted">Creá acceso para una nueva persona (ej. un vendedor). No te va a sacar de tu sesión.</p>
+        <div class="grid2">
+          <div class="field"><label>Email</label><input type="email" id="nuevoUserEmail"></div>
+          <div class="field"><label>Contraseña</label><input type="text" id="nuevoUserPass" placeholder="mín. 6 caracteres"></div>
+        </div>
+        <button class="btn btn-dark" onclick="crearUsuario()">Crear usuario</button>
+        <div id="nuevoUserMsg" class="muted" style="margin-top:8px"></div>
+        <p class="helpTxt" style="margin-top:10px">Para dar de baja un usuario, hacelo desde Firebase Console → Authentication (por seguridad, eso no se puede hacer desde acá).</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- MODAL CLIENTE -->
+<div class="modalBg" id="modalCliente">
+  <div class="modal">
+    <button class="modalClose" onclick="closeModal('modalCliente')">×</button>
+    <h3 id="clienteModalTitle">Nuevo cliente</h3>
+    <input type="hidden" id="clienteId">
+    <div class="field"><label>Nombre</label><input type="text" id="clienteNombre"></div>
+    <div class="grid2">
+      <div class="field"><label>Teléfono</label><input type="text" id="clienteTelefono"></div>
+      <div class="field"><label>DNI</label><input type="text" id="clienteDni"></div>
+    </div>
+    <div class="field"><label>Dirección</label><input type="text" id="clienteDireccion"></div>
+    <div class="checkline"><input type="checkbox" id="clienteSinMora"><label for="clienteSinMora">No cobrarle mora nunca (buen cliente)</label></div>
+    <div class="field"><label>Observaciones</label><textarea id="clienteObs"></textarea></div>
+    <button class="btn btn-gold btn-block" onclick="guardarCliente()">Guardar</button>
+  </div>
+</div>
+
+<!-- MODAL DETALLE CLIENTE -->
+<div class="modalBg" id="modalClienteDetalle">
+  <div class="modal" style="max-width:640px">
+    <button class="modalClose" onclick="closeModal('modalClienteDetalle')">×</button>
+    <h3 id="detalleClienteNombre"></h3>
+    <div id="detalleClienteInfo" class="muted" style="margin-bottom:14px"></div>
+    <div class="row" style="margin-bottom:14px">
+      <button class="btn btn-gold" onclick="nuevoPrestamoParaCliente()">+ Nuevo préstamo</button>
+      <button class="btn btn-ghost" onclick="editarClienteActual()">Editar datos</button>
+    </div>
+    <h3 style="font-size:14px">Préstamos</h3>
+    <div id="detallePrestamosCliente"></div>
+  </div>
+</div>
+
+<!-- MODAL PLAN -->
+<div class="modalBg" id="modalPlan">
+  <div class="modal">
+    <button class="modalClose" onclick="closeModal('modalPlan')">×</button>
+    <h3>Nuevo plan</h3>
+    <div class="field"><label>Nombre</label><input type="text" id="planNombre" placeholder="Ej: Semanal 4 cuotas"></div>
+    <div class="grid2">
+      <div class="field">
+        <label>Frecuencia</label>
+        <select id="planFrecuencia">
+          <option value="semanal">Semanal</option>
+          <option value="quincenal">Quincenal</option>
+          <option value="mensual">Mensual</option>
+        </select>
+      </div>
+      <div class="field"><label>Cantidad de cuotas</label><input type="number" min="1" id="planCuotas" value="1"></div>
+    </div>
+    <div class="field"><label>Comisión sugerida (%)</label><input type="number" step="0.01" id="planComision" placeholder="Ej: 20"></div>
+    <button class="btn btn-gold btn-block" onclick="guardarPlan()">Guardar</button>
+  </div>
+</div>
+
+<!-- MODAL PRESTAMO -->
+<div class="modalBg" id="modalPrestamo">
+  <div class="modal" style="max-width:560px">
+    <button class="modalClose" onclick="closeModal('modalPrestamo')">×</button>
+    <h3>Nuevo préstamo</h3>
+    <div class="field">
+      <label>Cliente</label>
+      <select id="pClienteId"></select>
+    </div>
+    <div class="field">
+      <label>Usar plan (opcional)</label>
+      <div id="planesChips"></div>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label>Frecuencia</label>
+        <select id="pFrecuencia" onchange="sugerirComision()">
+          <option value="semanal">Semanal</option>
+          <option value="quincenal">Quincenal</option>
+          <option value="mensual">Mensual</option>
+        </select>
+      </div>
+      <div class="field"><label>Cantidad de cuotas</label><input type="number" min="1" id="pCuotas" value="1" onchange="sugerirComision()"></div>
+    </div>
+    <div class="field"><label>Fecha primer vencimiento</label><input type="date" id="pFechaInicio"></div>
+    <div class="field"><label>Monto prestado ($)</label><input type="number" step="0.01" id="pMontoPrestado" oninput="recalcPreview()"></div>
+
+    <div class="field">
+      <label>¿Cómo calculamos el total a devolver?</label>
+      <select id="pModoCalculo" onchange="toggleModoCalculo()">
+        <option value="auto">Automático (capital + % comisión)</option>
+        <option value="manual">Yo cargo el monto final</option>
+      </select>
+    </div>
+    <div id="bloqueAuto" class="field">
+      <label>Comisión (%) <span class="helpTxt" id="comisionSugeridaTxt"></span></label>
+      <input type="number" step="0.01" id="pComision" oninput="recalcPreview()">
+    </div>
+    <div id="bloqueManual" class="field" style="display:none">
+      <label>Monto total a devolver ($)</label>
+      <input type="number" step="0.01" id="pMontoManual" oninput="recalcPreview()">
+    </div>
+
+    <div class="card" style="background:var(--panel-2);padding:12px 14px;margin:10px 0">
+      <div class="row" style="justify-content:space-between"><span class="muted">Total a devolver</span><b id="prevTotal">$0</b></div>
+      <div class="row" style="justify-content:space-between"><span class="muted">Valor de cada cuota</span><b id="prevCuota">$0</b></div>
+    </div>
+
+    <div class="grid2">
+      <div class="field">
+        <label>Mora — tipo</label>
+        <select id="pMoraTipo">
+          <option value="porcentaje">% diario</option>
+          <option value="fijo">$ fijo por día</option>
+        </select>
+      </div>
+      <div class="field"><label>Mora — valor</label><input type="number" step="0.01" id="pMoraValor"></div>
+    </div>
+    <div class="field"><label>Observaciones</label><textarea id="pObs"></textarea></div>
+    <button class="btn btn-gold btn-block" onclick="guardarPrestamo()">Generar préstamo</button>
+  </div>
+</div>
+
+<!-- MODAL DETALLE PRESTAMO / COBRO -->
+<div class="modalBg" id="modalPrestamoDetalle">
+  <div class="modal" style="max-width:640px">
+    <button class="modalClose" onclick="closeModal('modalPrestamoDetalle')">×</button>
+    <h3 id="pdTitulo"></h3>
+    <div id="pdInfo" class="muted" style="margin-bottom:10px"></div>
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn btn-ghost" onclick="descargarPdfPrestamo()">📄 Descargar cronograma (PDF)</button>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>Vence</th><th>Monto</th><th>Estado</th><th></th></tr></thead>
+      <tbody id="pdCuotas"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MODAL COBRO CUOTA -->
+<div class="modalBg" id="modalCobro">
+  <div class="modal">
+    <button class="modalClose" onclick="closeModal('modalCobro')">×</button>
+    <h3>Registrar pago</h3>
+    <div id="cobroInfo" class="muted" style="margin-bottom:12px"></div>
+    <div id="cobroMoraBox" style="display:none">
+      <div class="card" style="background:var(--warn-bg);padding:12px 14px;border:none">
+        <b id="cobroMoraTxt"></b>
+        <div class="checkline"><input type="checkbox" id="cobroAplicarMora" onchange="recalcCobro()"><label for="cobroAplicarMora">Aplicar mora a este pago</label></div>
+      </div>
+    </div>
+    <div class="field"><label>Monto a cobrar ($)</label><input type="number" step="0.01" id="cobroMonto"></div>
+    <button class="btn btn-gold btn-block" onclick="confirmarCobro()">Confirmar pago</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+/* =================== FIREBASE INIT =================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyAWDZV8GjAKz-A-Wtz_UoLmQ5kHG_I2BzM",
+  authDomain: "prestamos-58ee3.firebaseapp.com",
+  projectId: "prestamos-58ee3",
+  storageBucket: "prestamos-58ee3.firebasestorage.app",
+  messagingSenderId: "260309805329",
+  appId: "1:260309805329:web:08fd7e6a36916baff884b0"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+/* app secundaria: sirve para crear usuarios nuevos sin cerrar tu sesión */
+const secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
+const secondaryAuth = secondaryApp.auth();
+
+async function crearUsuario(){
+  const email = document.getElementById('nuevoUserEmail').value.trim();
+  const pass = document.getElementById('nuevoUserPass').value;
+  const msg = document.getElementById('nuevoUserMsg');
+  msg.style.color = ''; msg.textContent='Creando...';
+  if(!email || pass.length<6){ msg.style.color='var(--bad)'; msg.textContent='Completá email y una contraseña de al menos 6 caracteres.'; return; }
+  try{
+    await secondaryAuth.createUserWithEmailAndPassword(email, pass);
+    await secondaryAuth.signOut();
+    msg.style.color='var(--ok)'; msg.textContent = `Usuario ${email} creado. Ya puede entrar a la app.`;
+    document.getElementById('nuevoUserEmail').value='';
+    document.getElementById('nuevoUserPass').value='';
+    toast('Usuario creado');
+  }catch(err){
+    msg.style.color='var(--bad)';
+    if(err.code==='auth/email-already-in-use') msg.textContent='Ese email ya tiene una cuenta.';
+    else if(err.code==='auth/invalid-email') msg.textContent='Ese email no es válido.';
+    else msg.textContent = 'No se pudo crear: ' + err.message;
+  }
+}
+
+/* =================== ESTADO GLOBAL =================== */
+let CLIENTES = [];
+let PLANES = [];
+let PRESTAMOS = []; // cada uno con .cuotas embebido
+let CONFIG = { moraTipo:'porcentaje', moraValor:1.8 };
+let currentClienteDetalle = null;
+let currentPrestamoDetalle = null;
+let currentCobro = null; // {prestamoId, cuotaIndex}
+
+/* =================== AUTH =================== */
+auth.onAuthStateChanged(user=>{
+  if(user){
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('app').style.display='block';
+    document.getElementById('whoAmI').textContent = user.email;
+    cargarTodo();
+  } else {
+    document.getElementById('loginScreen').style.display='flex';
+    document.getElementById('app').style.display='none';
+  }
+});
+function doLogin(){
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  document.getElementById('loginError').textContent='';
+  auth.signInWithEmailAndPassword(email, pass).catch(err=>{
+    document.getElementById('loginError').textContent = 'No se pudo entrar: revisá usuario y contraseña.';
+  });
+}
+function doLogout(){ auth.signOut(); }
+
+/* =================== HELPERS =================== */
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display='block';
+  clearTimeout(t._h); t._h = setTimeout(()=>t.style.display='none', 2600);
+}
+function fmt(n){ return '$' + Number(n||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function addDias(dateStr, dias){ const d=new Date(dateStr+'T00:00:00'); d.setDate(d.getDate()+dias); return d.toISOString().slice(0,10); }
+function addMeses(dateStr, meses){ const d=new Date(dateStr+'T00:00:00'); d.setMonth(d.getMonth()+meses); return d.toISOString().slice(0,10); }
+function fmtFecha(s){ const [y,m,d]=s.split('-'); return `${d}/${m}/${y}`; }
+function diasEntre(a,b){ return Math.round((new Date(b+'T00:00:00') - new Date(a+'T00:00:00'))/86400000); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+
+function switchTab(tab){
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  ['inicio','clientes','prestamos','planes','config'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display = (t===tab)?'block':'none';
+  });
+  if(tab==='clientes') renderClientes();
+  if(tab==='prestamos') renderPrestamos();
+  if(tab==='planes') renderPlanes();
+  if(tab==='inicio') renderDashboard();
+}
+
+/* =================== CARGA DE DATOS =================== */
+async function cargarTodo(){
+  await cargarConfig();
+  await cargarClientes();
+  await cargarPlanes();
+  await cargarPrestamos();
+  renderDashboard();
+  renderClientes();
+  renderPrestamos();
+  renderPlanes();
+}
+
+async function cargarConfig(){
+  const snap = await db.collection('config').doc('general').get();
+  if(snap.exists){ CONFIG = snap.data(); }
+  document.getElementById('cfgMoraTipo').value = CONFIG.moraTipo;
+  document.getElementById('cfgMoraValor').value = CONFIG.moraValor;
+  actualizarLabelMora();
+}
+function actualizarLabelMora(){
+  const tipo = document.getElementById('cfgMoraTipo').value;
+  document.getElementById('cfgMoraValorLbl').textContent = tipo==='porcentaje' ? 'Valor (% por día)' : 'Valor ($ por día)';
+}
+document.getElementById('cfgMoraTipo').addEventListener('change', actualizarLabelMora);
+async function guardarConfig(){
+  CONFIG = {
+    moraTipo: document.getElementById('cfgMoraTipo').value,
+    moraValor: parseFloat(document.getElementById('cfgMoraValor').value)||0
+  };
+  await db.collection('config').doc('general').set(CONFIG);
+  toast('Configuración guardada');
+}
+
+async function cargarClientes(){
+  const snap = await db.collection('clientes').orderBy('nombre').get();
+  CLIENTES = snap.docs.map(d=>({id:d.id, ...d.data()}));
+}
+async function cargarPlanes(){
+  const snap = await db.collection('planes').get();
+  PLANES = snap.docs.map(d=>({id:d.id, ...d.data()}));
+}
+async function cargarPrestamos(){
+  const snap = await db.collection('prestamos').get();
+  PRESTAMOS = [];
+  for(const doc of snap.docs){
+    const cSnap = await db.collection('prestamos').doc(doc.id).collection('cuotas').orderBy('numero').get();
+    PRESTAMOS.push({ id:doc.id, ...doc.data(), cuotas: cSnap.docs.map(c=>({id:c.id, ...c.data()})) });
+  }
+}
+
+/* =================== DASHBOARD =================== */
+function estadoCuota(cuota, cliente){
+  if(cuota.pagado) return 'pagada';
+  const hoy = todayStr();
+  if(cuota.fechaVencimiento < hoy) return 'atrasada';
+  if(cuota.fechaVencimiento === hoy) return 'hoy';
+  return 'pendiente';
+}
+function calcularMoraSugerida(cuota, prestamo){
+  const hoy = todayStr();
+  const dias = diasEntre(cuota.fechaVencimiento, hoy);
+  if(dias<=0) return {dias:0, monto:0};
+  let monto = 0;
+  if(prestamo.moraTipo==='porcentaje'){
+    monto = cuota.monto * (prestamo.moraValor/100) * dias;
+  } else {
+    monto = prestamo.moraValor * dias;
+  }
+  return {dias, monto: Math.round(monto*100)/100};
+}
+
+function renderDashboard(){
+  const hoy = todayStr();
+  const en7 = addDias(hoy,7);
+  let atrasadas=[], hoyList=[], sem=[];
+  let totalPrestado=0, totalPorCobrar=0, totalCobrado=0, clientesConMora=0;
+
+  PRESTAMOS.forEach(p=>{
+    const cliente = CLIENTES.find(c=>c.id===p.clienteId);
+    totalPrestado += p.montoPrestado||0;
+    p.cuotas.forEach(cuota=>{
+      if(cuota.pagado){ totalCobrado += cuota.montoPagado||cuota.monto; return; }
+      totalPorCobrar += cuota.monto;
+      const row = {p, cuota, cliente};
+      if(cuota.fechaVencimiento < hoy) atrasadas.push(row);
+      else if(cuota.fechaVencimiento === hoy) hoyList.push(row);
+      else if(cuota.fechaVencimiento <= en7) sem.push(row);
+    });
+  });
+
+  document.getElementById('dashStats').innerHTML = `
+    <div class="stat"><div class="num">${fmt(totalPorCobrar)}</div><div class="lab">Por cobrar</div></div>
+    <div class="stat"><div class="num">${fmt(totalCobrado)}</div><div class="lab">Cobrado</div></div>
+    <div class="stat"><div class="num">${atrasadas.length}</div><div class="lab">Cuotas atrasadas</div></div>
+    <div class="stat"><div class="num">${CLIENTES.length}</div><div class="lab">Clientes</div></div>
+  `;
+
+  const renderRows = (arr, showMora)=>{
+    if(arr.length===0) return '<div class="empty">Nada por acá.</div>';
+    return `<table><thead><tr><th>Cliente</th><th>Cuota</th><th>Vence</th><th>Monto</th>${showMora?'<th>Mora</th>':''}<th></th></tr></thead><tbody>` +
+      arr.sort((a,b)=>a.cuota.fechaVencimiento.localeCompare(b.cuota.fechaVencimiento)).map(r=>{
+        let moraCell='';
+        if(showMora){
+          if(r.cliente && r.cliente.sinMora){ moraCell='<td class="muted">exento</td>'; }
+          else {
+            const m = calcularMoraSugerida(r.cuota, r.p);
+            moraCell = `<td>${m.dias}d · ${fmt(m.monto)}</td>`;
+          }
+        }
+        return `<tr>
+          <td class="clickable" onclick="verCliente('${r.p.clienteId}')">${r.cliente?r.cliente.nombre:'—'}</td>
+          <td>#${r.cuota.numero}</td>
+          <td>${fmtFecha(r.cuota.fechaVencimiento)}</td>
+          <td>${fmt(r.cuota.monto)}</td>
+          ${moraCell}
+          <td><button class="btn btn-ghost" style="padding:6px 10px;font-size:12px" onclick="abrirCobro('${r.p.id}',${r.cuota.numero})">Cobrar</button></td>
+        </tr>`;
+      }).join('') + '</tbody></table>';
+  };
+  document.getElementById('listAtrasadas').innerHTML = renderRows(atrasadas, true);
+  document.getElementById('listHoy').innerHTML = renderRows(hoyList, false);
+  document.getElementById('list7dias').innerHTML = renderRows(sem, false);
+}
+
+/* =================== CLIENTES =================== */
+function openClienteModal(cliente){
+  document.getElementById('clienteModalTitle').textContent = cliente? 'Editar cliente':'Nuevo cliente';
+  document.getElementById('clienteId').value = cliente? cliente.id : '';
+  document.getElementById('clienteNombre').value = cliente? cliente.nombre : '';
+  document.getElementById('clienteTelefono').value = cliente? cliente.telefono||'' : '';
+  document.getElementById('clienteDni').value = cliente? cliente.dni||'' : '';
+  document.getElementById('clienteDireccion').value = cliente? cliente.direccion||'' : '';
+  document.getElementById('clienteSinMora').checked = cliente? !!cliente.sinMora : false;
+  document.getElementById('clienteObs').value = cliente? cliente.observaciones||'' : '';
+  openModal('modalCliente');
+}
+async function guardarCliente(){
+  const id = document.getElementById('clienteId').value;
+  const nombre = document.getElementById('clienteNombre').value.trim();
+  if(!nombre){ toast('Falta el nombre'); return; }
+  const data = {
+    nombre,
+    telefono: document.getElementById('clienteTelefono').value.trim(),
+    dni: document.getElementById('clienteDni').value.trim(),
+    direccion: document.getElementById('clienteDireccion').value.trim(),
+    sinMora: document.getElementById('clienteSinMora').checked,
+    observaciones: document.getElementById('clienteObs').value.trim()
+  };
+  if(id){ await db.collection('clientes').doc(id).update(data); }
+  else { data.createdAt = firebase.firestore.FieldValue.serverTimestamp(); await db.collection('clientes').add(data); }
+  closeModal('modalCliente');
+  await cargarClientes();
+  renderClientes();
+  toast('Cliente guardado');
+}
+function renderClientes(){
+  const q = (document.getElementById('buscarCliente').value||'').toLowerCase();
+  const tbody = document.getElementById('tablaClientes');
+  const filtrados = CLIENTES.filter(c=>c.nombre.toLowerCase().includes(q));
+  if(filtrados.length===0){ tbody.innerHTML = `<tr><td colspan="5" class="empty">Sin clientes todavía.</td></tr>`; return; }
+  tbody.innerHTML = filtrados.map(c=>{
+    const nPrest = PRESTAMOS.filter(p=>p.clienteId===c.id).length;
+    return `<tr>
+      <td class="clickable" onclick="verCliente('${c.id}')">${c.nombre}</td>
+      <td>${c.telefono||'—'}</td>
+      <td>${c.sinMora? '<span class="badge badge-ok">Exento</span>' : '<span class="muted">Normal</span>'}</td>
+      <td>${nPrest}</td>
+      <td><button class="btn btn-ghost" style="padding:6px 10px;font-size:12px" onclick='openClienteModal(${JSON.stringify(c).replace(/'/g,"&apos;")})'>Editar</button></td>
+    </tr>`;
+  }).join('');
+}
+function verCliente(clienteId){
+  const c = CLIENTES.find(x=>x.id===clienteId);
+  if(!c) return;
+  currentClienteDetalle = c;
+  document.getElementById('detalleClienteNombre').textContent = c.nombre;
+  document.getElementById('detalleClienteInfo').innerHTML = `
+    ${c.telefono?('Tel: '+c.telefono+' · '):''}${c.dni?('DNI: '+c.dni+' · '):''}${c.sinMora?'<b style="color:var(--ok)">Sin mora</b>':'Cobra mora'}
+    ${c.direccion?('<br>'+c.direccion):''}
+    ${c.observaciones?('<br><i>'+c.observaciones+'</i>'):''}
+  `;
+  const prestamos = PRESTAMOS.filter(p=>p.clienteId===clienteId);
+  document.getElementById('detallePrestamosCliente').innerHTML = prestamos.length===0
+    ? '<div class="empty">Sin préstamos.</div>'
+    : prestamos.map(p=>{
+        const pagado = p.cuotas.filter(cu=>cu.pagado).length;
+        return `<div class="row" style="justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)">
+          <span class="clickable" onclick="verPrestamo('${p.id}')">${p.frecuencia} · ${p.cuotas.length} cuotas — ${fmt(p.montoTotal)}</span>
+          <span class="muted">${pagado}/${p.cuotas.length} pagadas</span>
+        </div>`;
+      }).join('');
+  openModal('modalClienteDetalle');
+}
+function editarClienteActual(){ closeModal('modalClienteDetalle'); openClienteModal(currentClienteDetalle); }
+function nuevoPrestamoParaCliente(){ closeModal('modalClienteDetalle'); openPrestamoModal(currentClienteDetalle.id); }
+
+/* =================== PLANES =================== */
+function openPlanModal(){
+  document.getElementById('planNombre').value='';
+  document.getElementById('planFrecuencia').value='semanal';
+  document.getElementById('planCuotas').value=1;
+  document.getElementById('planComision').value='';
+  openModal('modalPlan');
+}
+async function guardarPlan(){
+  const nombre = document.getElementById('planNombre').value.trim();
+  if(!nombre){ toast('Falta el nombre del plan'); return; }
+  await db.collection('planes').add({
+    nombre,
+    frecuencia: document.getElementById('planFrecuencia').value,
+    cuotas: parseInt(document.getElementById('planCuotas').value)||1,
+    comisionSugerida: parseFloat(document.getElementById('planComision').value)||0
+  });
+  closeModal('modalPlan');
+  await cargarPlanes();
+  renderPlanes();
+  toast('Plan guardado');
+}
+function renderPlanes(){
+  const tbody = document.getElementById('tablaPlanes');
+  if(PLANES.length===0){ tbody.innerHTML = `<tr><td colspan="5" class="empty">Sin planes todavía. Cargá uno para agilizar los préstamos.</td></tr>`; return; }
+  tbody.innerHTML = PLANES.map(p=>`<tr>
+    <td>${p.nombre}</td><td>${p.frecuencia}</td><td>${p.cuotas}</td><td>${p.comisionSugerida}%</td>
+    <td><button class="btn btn-danger" style="padding:6px 10px;font-size:12px" onclick="borrarPlan('${p.id}')">Borrar</button></td>
+  </tr>`).join('');
+}
+async function borrarPlan(id){
+  if(!confirm('¿Borrar este plan?')) return;
+  await db.collection('planes').doc(id).delete();
+  await cargarPlanes(); renderPlanes();
+}
+
+/* =================== PRESTAMOS: crear =================== */
+function openPrestamoModal(clienteIdPre){
+  document.getElementById('pClienteId').innerHTML = CLIENTES.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+  if(clienteIdPre) document.getElementById('pClienteId').value = clienteIdPre;
+  document.getElementById('pFrecuencia').value='semanal';
+  document.getElementById('pCuotas').value=1;
+  document.getElementById('pFechaInicio').value = todayStr();
+  document.getElementById('pMontoPrestado').value='';
+  document.getElementById('pModoCalculo').value='auto';
+  document.getElementById('pComision').value='';
+  document.getElementById('pMontoManual').value='';
+  document.getElementById('pMoraTipo').value = CONFIG.moraTipo||'porcentaje';
+  document.getElementById('pMoraValor').value = CONFIG.moraValor||0;
+  document.getElementById('pObs').value='';
+  document.getElementById('planesChips').innerHTML = PLANES.map(p=>
+    `<span class="planeChip" onclick="aplicarPlan('${p.id}', this)">${p.nombre}</span>`
+  ).join('') || '<span class="muted" style="font-size:12px">No cargaste planes todavía.</span>';
+  toggleModoCalculo();
+  sugerirComision();
+  recalcPreview();
+  openModal('modalPrestamo');
+}
+function aplicarPlan(planId, el){
+  document.querySelectorAll('.planeChip').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');
+  const plan = PLANES.find(p=>p.id===planId);
+  if(!plan) return;
+  document.getElementById('pFrecuencia').value = plan.frecuencia;
+  document.getElementById('pCuotas').value = plan.cuotas;
+  document.getElementById('pComision').value = plan.comisionSugerida;
+  recalcPreview();
+}
+function sugerirComision(){
+  // sugerencia simple por defecto si no hay plan aplicado
+  const cuotas = parseInt(document.getElementById('pCuotas').value)||1;
+  let sugerida = cuotas===1 ? 20 : (cuotas<=3 ? 45 : 60);
+  document.getElementById('comisionSugeridaTxt').textContent = `(sugerido: ${sugerida}%)`;
+  if(!document.getElementById('pComision').value){
+    document.getElementById('pComision').value = sugerida;
+  }
+  recalcPreview();
+}
+function toggleModoCalculo(){
+  const auto = document.getElementById('pModoCalculo').value==='auto';
+  document.getElementById('bloqueAuto').style.display = auto?'block':'none';
+  document.getElementById('bloqueManual').style.display = auto?'none':'block';
+  recalcPreview();
+}
+function recalcPreview(){
+  const monto = parseFloat(document.getElementById('pMontoPrestado').value)||0;
+  const cuotas = parseInt(document.getElementById('pCuotas').value)||1;
+  const modo = document.getElementById('pModoCalculo').value;
+  let total;
+  if(modo==='auto'){
+    const pct = parseFloat(document.getElementById('pComision').value)||0;
+    total = monto + (monto*pct/100);
+  } else {
+    total = parseFloat(document.getElementById('pMontoManual').value)||0;
+  }
+  document.getElementById('prevTotal').textContent = fmt(total);
+  document.getElementById('prevCuota').textContent = fmt(total/cuotas);
+}
+async function guardarPrestamo(){
+  const clienteId = document.getElementById('pClienteId').value;
+  if(!clienteId){ toast('Elegí un cliente'); return; }
+  const frecuencia = document.getElementById('pFrecuencia').value;
+  const cantCuotas = parseInt(document.getElementById('pCuotas').value)||1;
+  const fechaInicio = document.getElementById('pFechaInicio').value;
+  const montoPrestado = parseFloat(document.getElementById('pMontoPrestado').value)||0;
+  const modoCalculo = document.getElementById('pModoCalculo').value;
+  let montoTotal;
+  if(modoCalculo==='auto'){
+    const pct = parseFloat(document.getElementById('pComision').value)||0;
+    montoTotal = montoPrestado + (montoPrestado*pct/100);
+  } else {
+    montoTotal = parseFloat(document.getElementById('pMontoManual').value)||0;
+  }
+  if(!montoPrestado || !montoTotal || !fechaInicio){ toast('Completá monto y fecha'); return; }
+  const montoCuota = Math.round((montoTotal/cantCuotas)*100)/100;
+
+  const prestamo = {
+    clienteId, frecuencia, cantCuotas, montoPrestado, montoTotal,
+    modoCalculo,
+    comisionPct: modoCalculo==='auto' ? (parseFloat(document.getElementById('pComision').value)||0) : null,
+    moraTipo: document.getElementById('pMoraTipo').value,
+    moraValor: parseFloat(document.getElementById('pMoraValor').value)||0,
+    observaciones: document.getElementById('pObs').value.trim(),
+    estado: 'activo',
+    fechaInicio,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  const ref = await db.collection('prestamos').add(prestamo);
+
+  const batch = db.batch();
+  for(let i=0;i<cantCuotas;i++){
+    let fecha;
+    if(frecuencia==='semanal') fecha = addDias(fechaInicio, i*7);
+    else if(frecuencia==='quincenal') fecha = addDias(fechaInicio, i*15);
+    else fecha = addMeses(fechaInicio, i);
+    const cuotaRef = ref.collection('cuotas').doc();
+    batch.set(cuotaRef, { numero:i+1, fechaVencimiento:fecha, monto:montoCuota, pagado:false });
+  }
+  await batch.commit();
+  closeModal('modalPrestamo');
+  await cargarPrestamos();
+  renderPrestamos(); renderDashboard();
+  toast('Préstamo generado');
+}
+
+/* =================== PRESTAMOS: listado y detalle =================== */
+function renderPrestamos(){
+  const tbody = document.getElementById('tablaPrestamos');
+  if(PRESTAMOS.length===0){ tbody.innerHTML = `<tr><td colspan="6" class="empty">Sin préstamos todavía.</td></tr>`; return; }
+  tbody.innerHTML = PRESTAMOS.map(p=>{
+    const cliente = CLIENTES.find(c=>c.id===p.clienteId);
+    const cobrado = p.cuotas.filter(c=>c.pagado).reduce((s,c)=>s+(c.montoPagado||c.monto),0);
+    const atrasadas = p.cuotas.filter(c=>!c.pagado && c.fechaVencimiento<todayStr()).length;
+    const finalizado = p.cuotas.every(c=>c.pagado);
+    let estadoBadge = finalizado ? '<span class="badge badge-ok">Finalizado</span>' : atrasadas>0 ? `<span class="badge badge-bad">${atrasadas} atrasada(s)</span>` : '<span class="badge badge-warn">Activo</span>';
+    return `<tr>
+      <td class="clickable" onclick="verCliente('${p.clienteId}')">${cliente?cliente.nombre:'—'}</td>
+      <td>${p.frecuencia} · ${p.cantCuotas}c</td>
+      <td>${fmt(p.montoTotal)}</td>
+      <td>${fmt(cobrado)}</td>
+      <td>${estadoBadge}</td>
+      <td><button class="btn btn-ghost" style="padding:6px 10px;font-size:12px" onclick="verPrestamo('${p.id}')">Ver</button></td>
+    </tr>`;
+  }).join('');
+}
+function verPrestamo(id){
+  const p = PRESTAMOS.find(x=>x.id===id);
+  if(!p) return;
+  currentPrestamoDetalle = p;
+  const cliente = CLIENTES.find(c=>c.id===p.clienteId);
+  document.getElementById('pdTitulo').textContent = `${cliente?cliente.nombre:'—'} — ${p.frecuencia} · ${p.cantCuotas} cuotas`;
+  document.getElementById('pdInfo').innerHTML = `Prestado: ${fmt(p.montoPrestado)} · Total: ${fmt(p.montoTotal)} · Cuota: ${fmt(p.montoTotal/p.cantCuotas)}${p.observaciones?('<br>'+p.observaciones):''}`;
+  document.getElementById('pdCuotas').innerHTML = p.cuotas.map(c=>{
+    const est = estadoCuota(c, cliente);
+    const badge = c.pagado?'<span class="badge badge-ok">Pagada</span>': est==='atrasada'?'<span class="badge badge-bad">Atrasada</span>': est==='hoy'?'<span class="badge badge-warn">Hoy</span>':'<span class="muted">Pendiente</span>';
+    return `<tr>
+      <td>#${c.numero}</td><td>${fmtFecha(c.fechaVencimiento)}</td><td>${fmt(c.monto)}</td><td>${badge}</td>
+      <td>${c.pagado?'':`<button class="btn btn-ghost" style="padding:6px 10px;font-size:12px" onclick="abrirCobro('${p.id}',${c.numero})">Cobrar</button>`}</td>
+    </tr>`;
+  }).join('');
+  openModal('modalPrestamoDetalle');
+}
+
+/* =================== COBROS =================== */
+function abrirCobro(prestamoId, numeroCuota){
+  const p = PRESTAMOS.find(x=>x.id===prestamoId);
+  const cuota = p.cuotas.find(c=>c.numero===numeroCuota);
+  const cliente = CLIENTES.find(c=>c.id===p.clienteId);
+  currentCobro = {prestamoId, numeroCuota, p, cuota, cliente};
+  document.getElementById('cobroInfo').innerHTML = `${cliente.nombre} — Cuota #${cuota.numero} · Vence ${fmtFecha(cuota.fechaVencimiento)} · Monto ${fmt(cuota.monto)}`;
+  const dias = diasEntre(cuota.fechaVencimiento, todayStr());
+  const moraBox = document.getElementById('cobroMoraBox');
+  if(dias>0 && !(cliente && cliente.sinMora)){
+    const m = calcularMoraSugerida(cuota, p);
+    document.getElementById('cobroMoraTxt').textContent = `${dias} día(s) de atraso · Mora sugerida: ${fmt(m.monto)}`;
+    document.getElementById('cobroAplicarMora').checked = false;
+    moraBox.style.display='block';
+  } else {
+    moraBox.style.display='none';
+  }
+  document.getElementById('cobroMonto').value = cuota.monto;
+  openModal('modalCobro');
+  closeModal('modalPrestamoDetalle');
+}
+function recalcCobro(){
+  if(!currentCobro) return;
+  const {cuota, p} = currentCobro;
+  const aplicar = document.getElementById('cobroAplicarMora').checked;
+  if(aplicar){
+    const m = calcularMoraSugerida(cuota, p);
+    document.getElementById('cobroMonto').value = Math.round((cuota.monto + m.monto)*100)/100;
+  } else {
+    document.getElementById('cobroMonto').value = cuota.monto;
+  }
+}
+async function confirmarCobro(){
+  const {prestamoId, cuota} = currentCobro;
+  const aplicarMora = document.getElementById('cobroMoraBox').style.display!=='none' && document.getElementById('cobroAplicarMora').checked;
+  const montoPagado = parseFloat(document.getElementById('cobroMonto').value)||cuota.monto;
+  let moraMonto = 0;
+  if(aplicarMora){ moraMonto = calcularMoraSugerida(cuota, currentCobro.p).monto; }
+  const cuotaRef = db.collection('prestamos').doc(prestamoId).collection('cuotas').doc(cuota.id);
+  await cuotaRef.update({
+    pagado:true, fechaPago: todayStr(), montoPagado, moraAplicada: aplicarMora, moraMonto
+  });
+  closeModal('modalCobro');
+  await cargarPrestamos();
+  renderDashboard(); renderPrestamos();
+  toast('Pago registrado');
+}
+
+/* =================== PDF cronograma =================== */
+function descargarPdfPrestamo(){
+  const p = currentPrestamoDetalle;
+  const cliente = CLIENTES.find(c=>c.id===p.clienteId);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(16); doc.text('Cronograma de pagos', 14, 18);
+  doc.setFontSize(11);
+  doc.text(`Cliente: ${cliente?cliente.nombre:'—'}`, 14, 28);
+  doc.text(`Plan: ${p.frecuencia} - ${p.cantCuotas} cuotas`, 14, 35);
+  doc.text(`Monto prestado: ${fmt(p.montoPrestado)}   Total a devolver: ${fmt(p.montoTotal)}`, 14, 42);
+  let y = 55;
+  doc.setFontSize(10);
+  doc.text('Cuota', 14, y); doc.text('Vencimiento', 50, y); doc.text('Monto', 100, y); doc.text('Estado', 140, y);
+  y+=6; doc.line(14,y-3,190,y-3);
+  p.cuotas.forEach(c=>{
+    doc.text(`#${c.numero}`, 14, y);
+    doc.text(fmtFecha(c.fechaVencimiento), 50, y);
+    doc.text(fmt(c.monto), 100, y);
+    doc.text(c.pagado?'Pagada':'Pendiente', 140, y);
+    y+=7;
+    if(y>270){ doc.addPage(); y=20; }
+  });
+  doc.save(`cronograma-${(cliente?cliente.nombre:'cliente')}.pdf`);
+}
+</script>
+</body>
+</html>
