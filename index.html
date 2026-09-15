@@ -188,17 +188,29 @@
 
     <section id="tab-estadisticas" style="display:none">
       <div class="card">
-        <h2>Resumen general</h2>
-        <div class="statGrid" id="statsGenerales"></div>
+        <h2 id="statMesTitulo">Este mes</h2>
+        <div class="statGrid" id="statsMesActual"></div>
       </div>
       <div class="card">
-        <h2>Totales entre fechas</h2>
+        <h2>Historial mes a mes</h2>
+        <p class="muted">La ganancia es lo cobrado menos el capital que corresponde a esas cuotas (o sea, el interés + mora real que embolsás). El capital prestado no es ganancia, es plata que vuelve a girar.</p>
+        <div class="tableWrap"><table>
+          <thead><tr><th>Mes</th><th>Prestado (nuevo)</th><th>Cobrado</th><th>Ganancia (interés)</th></tr></thead>
+          <tbody id="tablaHistorialMensual"></tbody>
+        </table></div>
+      </div>
+      <div class="card">
+        <h2>Totales entre fechas (personalizado)</h2>
         <div class="row">
           <div class="field" style="margin:0"><label>Desde</label><input type="date" id="statDesde"></div>
           <div class="field" style="margin:0"><label>Hasta</label><input type="date" id="statHasta"></div>
           <button class="btn btn-dark" style="margin-top:18px" onclick="calcularTotalesEntreFechas()">Calcular</button>
         </div>
         <div id="statRango" style="margin-top:14px"></div>
+      </div>
+      <div class="card">
+        <h2>Histórico total (desde que usás la app)</h2>
+        <div class="statGrid" id="statsGenerales"></div>
       </div>
     </section>
 
@@ -382,6 +394,11 @@
     <button class="modalClose" onclick="closeModal('modalPrestamoDetalle')">×</button>
     <h3 id="pdTitulo"></h3>
     <div id="pdInfo" class="muted" style="margin-bottom:10px"></div>
+    <div class="row" style="margin-bottom:12px;background:var(--panel-2);padding:10px;border-radius:8px">
+      <span class="muted" style="font-size:12px">¿Fecha mal cargada? Corregí la fecha de la 1ª cuota:</span>
+      <input type="date" id="pdNuevaFechaInicio" style="max-width:160px">
+      <button class="btn btn-ghost btn-sm" onclick="corregirFechasPrestamoDesdeModal()">Corregir fechas</button>
+    </div>
     <div class="row" style="margin-bottom:12px">
       <button class="btn btn-ghost btn-sm" onclick="descargarPdfPrestamo()">📄 Cronograma (PDF)</button>
     </div>
@@ -644,7 +661,7 @@ function renderDashboard(){
     <div class="stat"><div class="num">${fmt(totalCobrado)}</div><div class="lab">Cobrado</div></div>
     <div class="stat"><div class="num">${atrasadas.length}</div><div class="lab">Cuotas atrasadas</div></div>
     <div class="stat"><div class="num">${CLIENTES.length}</div><div class="lab">Clientes</div></div>`;
-  const renderRows = (arr, showMora)=>{
+  const renderRows = (arr, showMora, esAtrasada)=>{
     if(arr.length===0) return '<div class="empty">Nada por acá.</div>';
     return `<div class="tableWrap"><table><thead><tr><th>Cliente</th><th>Cuota</th><th>Vence</th><th>Monto</th>${showMora?'<th>Mora</th>':''}<th></th></tr></thead><tbody>` +
       arr.sort((a,b)=>a.cuota.fechaVencimiento.localeCompare(b.cuota.fechaVencimiento)).map(r=>{
@@ -657,13 +674,16 @@ function renderDashboard(){
           <td class="clickable" onclick="verCliente('${r.p.clienteId}')">${r.cliente?r.cliente.nombre:'—'}</td>
           <td>#${r.cuota.numero}</td><td>${fmtFecha(r.cuota.fechaVencimiento)}</td><td>${fmt(r.cuota.monto)}</td>
           ${moraCell}
-          <td><button class="btn btn-ghost btn-sm" onclick="abrirCobro('${r.p.id}',${r.cuota.numero})">Cobrar</button></td>
+          <td>
+            <button class="btn btn-ghost btn-sm" onclick="abrirCobro('${r.p.id}',${r.cuota.numero})">Cobrar</button>
+            <button class="btn btn-ghost btn-sm" onclick="enviarRecordatorio('${r.p.id}',${r.cuota.numero},${esAtrasada?'true':'false'})">💬 Recordar</button>
+          </td>
         </tr>`;
       }).join('') + '</tbody></table></div>';
   };
-  document.getElementById('listAtrasadas').innerHTML = renderRows(atrasadas, true);
-  document.getElementById('listHoy').innerHTML = renderRows(hoyList, false);
-  document.getElementById('list7dias').innerHTML = renderRows(sem, false);
+  document.getElementById('listAtrasadas').innerHTML = renderRows(atrasadas, true, true);
+  document.getElementById('listHoy').innerHTML = renderRows(hoyList, false, false);
+  document.getElementById('list7dias').innerHTML = renderRows(sem, false, false);
 }
 
 function openClienteModal(cliente){
@@ -875,6 +895,7 @@ function aplicarPlan(planId, el){
   const plan = PLANES.find(p=>p.id===planId);
   if(!plan) return;
   document.getElementById('pFrecuencia').value = plan.frecuencia;
+  document.getElementById('pFechaInicio').value = fechaSugeridaInicio(plan.frecuencia);
   document.getElementById('pCuotas').value = plan.cuotas;
   document.getElementById('pMontoPrestado').value = plan.montoPrestar;
   if(plan.tipoInteres==='porcentaje'){
@@ -1015,6 +1036,7 @@ function verPrestamo(id){
   const cliente = CLIENTES.find(c=>c.id===p.clienteId);
   document.getElementById('pdTitulo').textContent = `${formatNumeroPrestamo(p.numero)} — ${cliente?cliente.nombre:'—'} — ${p.frecuencia} · ${p.cantCuotas} cuotas`;
   document.getElementById('pdInfo').innerHTML = `Prestado: ${fmt(p.montoPrestado)} · Total: ${fmt(p.montoTotal)} · Cuota: ${fmt(p.montoTotal/p.cantCuotas)} · Mora: ${p.aplicaMora===false?'no cobra':'sí cobra'}${p.observaciones?('<br>'+p.observaciones):''}`;
+  document.getElementById('pdNuevaFechaInicio').value = p.fechaInicio;
   document.getElementById('pdCuotas').innerHTML = p.cuotas.map(c=>{
     const est = estadoCuota(c);
     const badge = c.pagado?'<span class="badge badge-ok">Pagada</span>': est==='atrasada'?'<span class="badge badge-bad">Atrasada</span>': est==='hoy'?'<span class="badge badge-warn">Hoy</span>':'<span class="muted">Pendiente</span>';
@@ -1028,6 +1050,26 @@ function verPrestamo(id){
     return `<tr><td>#${c.numero}</td><td>${fmtFecha(c.fechaVencimiento)}</td><td>${fmt(c.monto)}</td><td>${badge}</td><td>${acciones}</td></tr>`;
   }).join('');
   openModal('modalPrestamoDetalle');
+}
+async function corregirFechasPrestamoDesdeModal(){
+  const p = currentPrestamoDetalle;
+  const nuevaFechaInicio = document.getElementById('pdNuevaFechaInicio').value;
+  if(!nuevaFechaInicio){ toast('Elegí una fecha', true); return; }
+  try{
+    const batch = db.batch();
+    p.cuotas.forEach((c,idx)=>{
+      let fecha;
+      if(p.frecuencia==='semanal') fecha = addDias(nuevaFechaInicio, idx*7);
+      else if(p.frecuencia==='quincenal') fecha = addDias(nuevaFechaInicio, idx*15);
+      else fecha = addMeses(nuevaFechaInicio, idx);
+      batch.update(db.collection('prestamos').doc(p.id).collection('cuotas').doc(c.id), {fechaVencimiento: fecha});
+    });
+    batch.update(db.collection('prestamos').doc(p.id), {fechaInicio: nuevaFechaInicio});
+    await batch.commit();
+    await cargarPrestamos();
+    verPrestamo(p.id); renderPrestamos(); renderDashboard();
+    toast('Fechas corregidas');
+  }catch(err){ mostrarError(err, 'No se pudieron corregir las fechas'); }
 }
 async function anularPago(prestamoId, cuotaId){
   if(!confirm('¿Anular este pago? Vuelve a quedar como pendiente.')) return;
@@ -1132,21 +1174,85 @@ function generarReciboPdf(prestamoId, numeroCuota){
   doc.save(`recibo-${(cliente?cliente.nombre:'cliente')}-cuota${cuota.numero}.pdf`);
 }
 
+function enviarRecordatorio(prestamoId, numeroCuota, atrasada){
+  const p = PRESTAMOS.find(x=>x.id===prestamoId);
+  const cuota = p.cuotas.find(c=>c.numero===numeroCuota);
+  const cliente = CLIENTES.find(c=>c.id===p.clienteId);
+  if(!cliente){ toast('No encontré el cliente', true); return; }
+  if(!cliente.telefono){ toast('Este cliente no tiene teléfono cargado', true); return; }
+  const empresaFirma = CONFIG.empresaNombre ? ` - ${CONFIG.empresaNombre}` : '';
+  let msg;
+  if(atrasada && p.aplicaMora!==false){
+    msg = `Hola ${cliente.nombre}! Tu cuota de ${fmt(cuota.monto)} venció el ${fmtFecha(cuota.fechaVencimiento)} y sigue pendiente. Te pedimos que la abones a la brevedad para evitar que se siga sumando mora por atraso. ¡Gracias!${empresaFirma}`;
+  } else if(atrasada){
+    msg = `Hola ${cliente.nombre}! Tu cuota de ${fmt(cuota.monto)} venció el ${fmtFecha(cuota.fechaVencimiento)} y sigue pendiente. Te pedimos que te pongas al día a la brevedad. ¡Gracias!${empresaFirma}`;
+  } else {
+    msg = `Hola ${cliente.nombre}! Te recordamos que tu cuota de ${fmt(cuota.monto)} vence el ${fmtFecha(cuota.fechaVencimiento)}. Te pedimos priorizar el pago para evitar recargos por atraso. ¡Gracias!${empresaFirma}`;
+  }
+  let tel = cliente.telefono.replace(/\D/g,'');
+  if(tel.length>0 && tel.length<=10) tel = '549'+tel;
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+const MESES_NOMBRE = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function nombreMes(ym){ const [y,m] = ym.split('-'); return `${MESES_NOMBRE[parseInt(m)-1]} ${y}`; }
+
 function renderEstadisticas(){
-  let totalPrestado=0, totalCobrado=0, totalPorCobrar=0, cuotasTotales=0, cuotasPagadas=0;
+  const mesActual = todayStr().slice(0,7);
+  let totalPrestado=0, totalCobrado=0, totalPorCobrar=0, cuotasTotales=0;
+  const porMes = {};
+
   PRESTAMOS.forEach(p=>{
     totalPrestado += p.montoPrestado||0;
+    const capitalPorCuota = (p.montoPrestado||0) / (p.cantCuotas||1);
+    const mesOtorgado = p.createdAt && p.createdAt.toDate ? p.createdAt.toDate().toISOString().slice(0,7) : (p.fechaInicio||'').slice(0,7);
+    if(mesOtorgado){
+      porMes[mesOtorgado] = porMes[mesOtorgado] || {prestado:0,cobrado:0,ganancia:0,nuevos:0};
+      porMes[mesOtorgado].prestado += p.montoPrestado||0;
+      porMes[mesOtorgado].nuevos += 1;
+    }
     p.cuotas.forEach(c=>{
       cuotasTotales++;
-      if(c.pagado){ cuotasPagadas++; totalCobrado += c.montoPagado||c.monto; }
-      else { totalPorCobrar += c.monto; }
+      if(c.pagado){
+        const monto = c.montoPagado||c.monto;
+        totalCobrado += monto;
+        const ganancia = monto - capitalPorCuota;
+        const mesPago = (c.fechaPago||'').slice(0,7);
+        if(mesPago){
+          porMes[mesPago] = porMes[mesPago] || {prestado:0,cobrado:0,ganancia:0,nuevos:0};
+          porMes[mesPago].cobrado += monto;
+          porMes[mesPago].ganancia += ganancia;
+        }
+      } else {
+        totalPorCobrar += c.monto;
+      }
     });
   });
+
+  const datosMes = porMes[mesActual] || {prestado:0,cobrado:0,ganancia:0,nuevos:0};
+  let pendienteMes=0;
+  PRESTAMOS.forEach(p=>p.cuotas.forEach(c=>{
+    if(!c.pagado && c.fechaVencimiento.slice(0,7)===mesActual) pendienteMes += c.monto;
+  }));
+  document.getElementById('statMesTitulo').textContent = `Este mes (${nombreMes(mesActual)})`;
+  document.getElementById('statsMesActual').innerHTML = `
+    <div class="stat"><div class="num">${fmt(datosMes.cobrado)}</div><div class="lab">Cobrado este mes</div></div>
+    <div class="stat"><div class="num">${fmt(pendienteMes)}</div><div class="lab">Pendiente de cobrar (vence este mes)</div></div>
+    <div class="stat"><div class="num" style="color:var(--ok)">${fmt(datosMes.ganancia)}</div><div class="lab">Ganancia real (interés)</div></div>
+    <div class="stat"><div class="num">${fmt(datosMes.prestado)}</div><div class="lab">Prestado nuevo este mes</div></div>`;
+
+  const meses = Object.keys(porMes).sort().reverse().slice(0,12);
+  const tbody = document.getElementById('tablaHistorialMensual');
+  tbody.innerHTML = meses.length===0 ? '<tr><td colspan="4" class="empty">Todavía no hay datos.</td></tr>' : meses.map(m=>{
+    const d = porMes[m];
+    return `<tr><td>${nombreMes(m)}</td><td>${fmt(d.prestado)}</td><td>${fmt(d.cobrado)}</td><td style="color:var(--ok);font-weight:600">${fmt(d.ganancia)}</td></tr>`;
+  }).join('');
+
   document.getElementById('statsGenerales').innerHTML = `
     <div class="stat"><div class="num">${PRESTAMOS.length}</div><div class="lab">Préstamos totales</div></div>
     <div class="stat"><div class="num">${cuotasTotales}</div><div class="lab">Cuotas totales</div></div>
-    <div class="stat"><div class="num">${fmt(totalPrestado)}</div><div class="lab">Total prestado</div></div>
-    <div class="stat"><div class="num">${fmt(totalCobrado)}</div><div class="lab">Total cobrado</div></div>
+    <div class="stat"><div class="num">${fmt(totalPrestado)}</div><div class="lab">Total prestado (histórico)</div></div>
+    <div class="stat"><div class="num">${fmt(totalCobrado)}</div><div class="lab">Total cobrado (histórico)</div></div>
     <div class="stat"><div class="num">${fmt(totalPorCobrar)}</div><div class="lab">Total por cobrar</div></div>
     <div class="stat"><div class="num">${CLIENTES.length}</div><div class="lab">Clientes registrados</div></div>`;
   document.getElementById('statDesde').value = addDias(todayStr(),-30);
