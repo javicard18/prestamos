@@ -17,7 +17,8 @@
     --radius:10px;
   }
   *{box-sizing:border-box;}
-  body{margin:0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--panel-2);color:var(--ink);}
+  html{overflow-x:hidden;}
+  body{margin:0;overflow-x:hidden;width:100%;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--panel-2);color:var(--ink);}
   h1,h2,h3{font-family:Georgia,'Times New Roman',serif;font-weight:600;margin:0;}
   button{font-family:inherit;cursor:pointer;}
   input,select,textarea{font-family:inherit;}
@@ -42,12 +43,12 @@
   .btn-block{width:100%;}
   #loginError{color:var(--bad);font-size:13px;margin-top:10px;min-height:16px;white-space:pre-wrap;}
   #app{display:none;min-height:100vh;}
-  header.topbar{background:var(--bg);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+  header.topbar{background:var(--bg);color:#fff;padding:10px 14px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;position:sticky;top:0;z-index:20;}
   header.topbar .brand{display:flex;align-items:center;gap:10px;}
   header.topbar .brand img{height:32px;width:32px;object-fit:contain;border-radius:6px;background:#fff;}
   header.topbar h1{font-size:20px;color:#fff;}
-  header.topbar .who{font-size:12px;color:#B9CFCC;}
-  nav.tabs{display:flex;gap:2px;background:var(--bg-soft);padding:0 24px;overflow-x:auto;}
+  header.topbar .who{font-size:12px;color:#B9CFCC;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  nav.tabs{display:flex;gap:2px;background:var(--bg-soft);padding:0 24px;overflow-x:auto;max-width:100%;}
   nav.tabs button{background:transparent;color:#CFE3E0;border:none;padding:12px 16px;font-size:13px;font-weight:600;white-space:nowrap;border-bottom:3px solid transparent;}
   nav.tabs button.active{color:#fff;border-bottom-color:var(--gold);}
   main{max-width:1100px;margin:0 auto;padding:22px 18px 60px;}
@@ -88,6 +89,18 @@
   .segBtns button{flex:1;padding:9px;border:none;background:#fff;font-size:13px;color:var(--ink-soft);}
   .segBtns button.sel{background:var(--bg);color:#fff;font-weight:600;}
   #logoPreview{max-height:60px;max-width:120px;border:1px solid var(--line);border-radius:6px;padding:4px;background:#fff;display:none;}
+  .tableWrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;}
+  .tableWrap table{min-width:560px;}
+  @media(max-width:640px){
+    header.topbar{padding:10px 12px;flex-wrap:wrap;gap:6px;}
+    header.topbar h1{font-size:16px;}
+    nav.tabs{padding:0 8px;}
+    nav.tabs button{padding:10px 10px;font-size:12px;}
+    main{padding:14px 8px 60px;}
+    .card{padding:14px 12px;}
+    td .btn{display:block;width:100%;margin-bottom:4px;}
+    td .btn:last-child{margin-bottom:0;}
+  }
 </style>
 </head>
 <body>
@@ -138,10 +151,10 @@
           <button class="btn btn-gold" onclick="openClienteModal()">+ Nuevo cliente</button>
         </div>
         <div class="field" style="margin-top:12px;max-width:300px"><input type="text" id="buscarCliente" placeholder="Buscar por nombre..." oninput="renderClientes()"></div>
-        <table style="margin-top:10px">
+        <div class="tableWrap"><table style="margin-top:10px">
           <thead><tr><th>Nombre</th><th>Teléfono</th><th>Préstamos</th><th></th></tr></thead>
           <tbody id="tablaClientes"></tbody>
-        </table>
+        </table></div>
       </div>
     </section>
 
@@ -151,10 +164,11 @@
           <h2 style="margin:0">Préstamos</h2>
           <button class="btn btn-gold" onclick="openPrestamoModal()">+ Nuevo préstamo</button>
         </div>
-        <table style="margin-top:12px">
-          <thead><tr><th>Cliente</th><th>Plan</th><th>Total</th><th>Cobrado</th><th>Mora</th><th>Estado</th><th></th></tr></thead>
+        <div class="field" style="margin-top:12px;max-width:320px"><input type="text" id="buscarPrestamo" placeholder="Buscar por cliente o N° (ej: 001)" oninput="renderPrestamos()"></div>
+        <div class="tableWrap"><table style="margin-top:12px">
+          <thead><tr><th>Ref.</th><th>Cliente</th><th>Plan</th><th>Total</th><th>Cobrado</th><th>Mora</th><th>Estado</th><th></th></tr></thead>
           <tbody id="tablaPrestamos"></tbody>
-        </table>
+        </table></div>
       </div>
     </section>
 
@@ -165,10 +179,10 @@
           <button class="btn btn-gold" onclick="openPlanModal()">+ Nuevo plan</button>
         </div>
         <p class="muted">Plantillas fijas para agilizar la carga (ej: "presto 100.000, devuelve 160.000 en 2 cuotas"). Al crear un préstamo siempre podés ajustar todo a mano.</p>
-        <table style="margin-top:8px">
+        <div class="tableWrap"><table style="margin-top:8px">
           <thead><tr><th>Nombre</th><th>Frecuencia</th><th>Cuotas</th><th>Prestás</th><th>Interés</th><th>Devuelve</th><th></th></tr></thead>
           <tbody id="tablaPlanes"></tbody>
-        </table>
+        </table></div>
       </div>
     </section>
 
@@ -318,7 +332,7 @@
     <div class="grid2">
       <div class="field">
         <label>Frecuencia</label>
-        <select id="pFrecuencia" onchange="sugerirComision()">
+        <select id="pFrecuencia" onchange="onFrecuenciaChange()">
           <option value="semanal">Semanal</option>
           <option value="quincenal">Quincenal</option>
           <option value="mensual">Mensual</option>
@@ -371,10 +385,10 @@
     <div class="row" style="margin-bottom:12px">
       <button class="btn btn-ghost btn-sm" onclick="descargarPdfPrestamo()">📄 Cronograma (PDF)</button>
     </div>
-    <table>
+    <div class="tableWrap"><table>
       <thead><tr><th>#</th><th>Vence</th><th>Monto</th><th>Estado</th><th></th></tr></thead>
       <tbody id="pdCuotas"></tbody>
-    </table>
+    </table></div>
   </div>
 </div>
 
@@ -632,7 +646,7 @@ function renderDashboard(){
     <div class="stat"><div class="num">${CLIENTES.length}</div><div class="lab">Clientes</div></div>`;
   const renderRows = (arr, showMora)=>{
     if(arr.length===0) return '<div class="empty">Nada por acá.</div>';
-    return `<table><thead><tr><th>Cliente</th><th>Cuota</th><th>Vence</th><th>Monto</th>${showMora?'<th>Mora</th>':''}<th></th></tr></thead><tbody>` +
+    return `<div class="tableWrap"><table><thead><tr><th>Cliente</th><th>Cuota</th><th>Vence</th><th>Monto</th>${showMora?'<th>Mora</th>':''}<th></th></tr></thead><tbody>` +
       arr.sort((a,b)=>a.cuota.fechaVencimiento.localeCompare(b.cuota.fechaVencimiento)).map(r=>{
         let moraCell='';
         if(showMora){
@@ -645,7 +659,7 @@ function renderDashboard(){
           ${moraCell}
           <td><button class="btn btn-ghost btn-sm" onclick="abrirCobro('${r.p.id}',${r.cuota.numero})">Cobrar</button></td>
         </tr>`;
-      }).join('') + '</tbody></table>';
+      }).join('') + '</tbody></table></div>';
   };
   document.getElementById('listAtrasadas').innerHTML = renderRows(atrasadas, true);
   document.getElementById('listHoy').innerHTML = renderRows(hoyList, false);
@@ -789,7 +803,7 @@ function generarOfertaPdf(planId){
   if(!p) return;
   const devolver = montoDevolverPlan(p);
   const cuotaValor = Math.round((devolver/p.cuotas)*100)/100;
-  const fechaInicio = todayStr();
+  const fechaInicio = fechaSugeridaInicio(p.frecuencia);
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   let y = pdfHeader(doc, 18);
@@ -840,7 +854,7 @@ function openPrestamoModal(clienteIdPre){
   if(clienteIdPre) document.getElementById('pClienteId').value = clienteIdPre;
   document.getElementById('pFrecuencia').value='semanal';
   document.getElementById('pCuotas').value=1;
-  document.getElementById('pFechaInicio').value = todayStr();
+  document.getElementById('pFechaInicio').value = fechaSugeridaInicio('semanal');
   document.getElementById('pMontoPrestado').value='';
   document.getElementById('pModoCalculo').value='auto';
   document.getElementById('pComision').value='';
@@ -873,6 +887,15 @@ function aplicarPlan(planId, el){
   toggleModoCalculo();
   recalcPreview();
 }
+function fechaSugeridaInicio(frecuencia){
+  if(frecuencia==='semanal') return addDias(todayStr(),7);
+  if(frecuencia==='quincenal') return addDias(todayStr(),15);
+  return addMeses(todayStr(),1);
+}
+function onFrecuenciaChange(){
+  document.getElementById('pFechaInicio').value = fechaSugeridaInicio(document.getElementById('pFrecuencia').value);
+  sugerirComision();
+}
 function sugerirComision(){
   const cuotas = parseInt(document.getElementById('pCuotas').value)||1;
   const frecuencia = document.getElementById('pFrecuencia').value;
@@ -897,6 +920,17 @@ function recalcPreview(){
   let total = modo==='auto' ? monto + monto*((parseFloat(document.getElementById('pComision').value)||0)/100) : (parseFloat(document.getElementById('pMontoManual').value)||0);
   document.getElementById('prevTotal').textContent = fmt(total);
   document.getElementById('prevCuota').textContent = fmt(total/cuotas);
+}
+function formatNumeroPrestamo(n){ return n ? ('#'+String(n).padStart(3,'0')) : '—'; }
+async function obtenerProximoNumeroPrestamo(){
+  const configRef = db.collection('config').doc('general');
+  return db.runTransaction(async t=>{
+    const doc = await t.get(configRef);
+    let ultimo = (doc.exists && doc.data().ultimoNumeroPrestamo) || 0;
+    ultimo++;
+    t.set(configRef, {ultimoNumeroPrestamo: ultimo}, {merge:true});
+    return ultimo;
+  });
 }
 async function guardarPrestamo(){
   const clienteId = document.getElementById('pClienteId').value;
@@ -924,6 +958,8 @@ async function guardarPrestamo(){
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   };
   try{
+    const numero = await obtenerProximoNumeroPrestamo();
+    prestamo.numero = numero;
     const ref = await db.collection('prestamos').add(prestamo);
     const batch = db.batch();
     for(let i=0;i<cantCuotas;i++){
@@ -944,14 +980,25 @@ async function guardarPrestamo(){
 
 function renderPrestamos(){
   const tbody = document.getElementById('tablaPrestamos');
-  if(PRESTAMOS.length===0){ tbody.innerHTML = `<tr><td colspan="7" class="empty">Sin préstamos todavía.</td></tr>`; return; }
-  tbody.innerHTML = PRESTAMOS.map(p=>{
+  const q = (document.getElementById('buscarPrestamo').value||'').toLowerCase().trim();
+  let lista = PRESTAMOS;
+  if(q){
+    lista = PRESTAMOS.filter(p=>{
+      const cliente = CLIENTES.find(c=>c.id===p.clienteId);
+      const nombre = cliente ? cliente.nombre.toLowerCase() : '';
+      const ref = formatNumeroPrestamo(p.numero).toLowerCase();
+      return nombre.includes(q) || ref.includes(q) || ref.replace('#','').includes(q.replace('#',''));
+    });
+  }
+  if(lista.length===0){ tbody.innerHTML = `<tr><td colspan="8" class="empty">${q?'Sin resultados.':'Sin préstamos todavía.'}</td></tr>`; return; }
+  tbody.innerHTML = lista.map(p=>{
     const cliente = CLIENTES.find(c=>c.id===p.clienteId);
     const cobrado = p.cuotas.filter(c=>c.pagado).reduce((s,c)=>s+(c.montoPagado||c.monto),0);
     const atrasadas = p.cuotas.filter(c=>!c.pagado && c.fechaVencimiento<todayStr()).length;
     const finalizado = p.cuotas.every(c=>c.pagado);
     let estadoBadge = finalizado ? '<span class="badge badge-ok">Finalizado</span>' : atrasadas>0 ? `<span class="badge badge-bad">${atrasadas} atrasada(s)</span>` : '<span class="badge badge-warn">Activo</span>';
     return `<tr>
+      <td>${formatNumeroPrestamo(p.numero)}</td>
       <td class="clickable" onclick="verCliente('${p.clienteId}')">${cliente?cliente.nombre:'—'}</td>
       <td>${p.frecuencia} · ${p.cantCuotas}c</td>
       <td>${fmt(p.montoTotal)}</td><td>${fmt(cobrado)}</td>
@@ -966,7 +1013,7 @@ function verPrestamo(id){
   if(!p) return;
   currentPrestamoDetalle = p;
   const cliente = CLIENTES.find(c=>c.id===p.clienteId);
-  document.getElementById('pdTitulo').textContent = `${cliente?cliente.nombre:'—'} — ${p.frecuencia} · ${p.cantCuotas} cuotas`;
+  document.getElementById('pdTitulo').textContent = `${formatNumeroPrestamo(p.numero)} — ${cliente?cliente.nombre:'—'} — ${p.frecuencia} · ${p.cantCuotas} cuotas`;
   document.getElementById('pdInfo').innerHTML = `Prestado: ${fmt(p.montoPrestado)} · Total: ${fmt(p.montoTotal)} · Cuota: ${fmt(p.montoTotal/p.cantCuotas)} · Mora: ${p.aplicaMora===false?'no cobra':'sí cobra'}${p.observaciones?('<br>'+p.observaciones):''}`;
   document.getElementById('pdCuotas').innerHTML = p.cuotas.map(c=>{
     const est = estadoCuota(c);
@@ -1052,6 +1099,7 @@ function descargarPdfPrestamo(){
   let y = pdfHeader(doc, 18);
   doc.setFontSize(13); doc.text('Cronograma de pagos', 14, y+6); y+=16;
   doc.setFontSize(11);
+  doc.text(`N° de préstamo: ${formatNumeroPrestamo(p.numero)}`, 14, y); y+=7;
   doc.text(`Cliente: ${cliente?cliente.nombre:'—'}`, 14, y); y+=7;
   doc.text(`Plan: ${p.frecuencia} - ${p.cantCuotas} cuotas`, 14, y); y+=7;
   doc.text(`Prestado: ${fmt(p.montoPrestado)}   Total a devolver: ${fmt(p.montoTotal)}`, 14, y); y+=12;
@@ -1074,6 +1122,7 @@ function generarReciboPdf(prestamoId, numeroCuota){
   let y = pdfHeader(doc, 18);
   doc.setFontSize(13); doc.text('Recibo de pago', 14, y+6); y+=18;
   doc.setFontSize(11);
+  doc.text(`N° de préstamo: ${formatNumeroPrestamo(p.numero)}`, 14, y); y+=8;
   doc.text(`Cliente: ${cliente?cliente.nombre:'—'}`, 14, y); y+=8;
   doc.text(`Cuota N°: ${cuota.numero} de ${p.cantCuotas}`, 14, y); y+=8;
   doc.text(`Vencimiento: ${fmtFecha(cuota.fechaVencimiento)}`, 14, y); y+=8;
