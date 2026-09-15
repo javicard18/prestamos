@@ -338,7 +338,9 @@
 <div class="modalBg" id="modalPrestamo">
   <div class="modal" style="max-width:560px">
     <button class="modalClose" onclick="closeModal('modalPrestamo')">×</button>
-    <h3>Nuevo préstamo</h3>
+    <h3 id="prestamoModalTitle">Nuevo préstamo</h3>
+    <input type="hidden" id="pPrestamoIdEditando">
+    <div id="pAvisoPagos" class="helpTxt" style="display:none;background:var(--warn-bg);color:var(--warn);padding:8px 10px;border-radius:6px;margin-bottom:10px">Este préstamo ya tiene pagos registrados: solo podés cambiar la fecha, la mora y las observaciones.</div>
     <div class="field"><label>Cliente</label><select id="pClienteId"></select></div>
     <div class="field"><label>Usar plan (opcional)</label><div id="planesChips"></div></div>
     <div class="grid2">
@@ -385,7 +387,7 @@
       <div class="field"><label>Mora — valor</label><input type="number" step="0.01" id="pMoraValor"></div>
     </div>
     <div class="field"><label>Observaciones</label><textarea id="pObs"></textarea></div>
-    <button class="btn btn-gold btn-block" onclick="guardarPrestamo()">Generar préstamo</button>
+    <button class="btn btn-gold btn-block" id="btnGuardarPrestamo" onclick="guardarPrestamo()">Generar préstamo</button>
   </div>
 </div>
 
@@ -394,11 +396,6 @@
     <button class="modalClose" onclick="closeModal('modalPrestamoDetalle')">×</button>
     <h3 id="pdTitulo"></h3>
     <div id="pdInfo" class="muted" style="margin-bottom:10px"></div>
-    <div class="row" style="margin-bottom:12px;background:var(--panel-2);padding:10px;border-radius:8px">
-      <span class="muted" style="font-size:12px">¿Fecha mal cargada? Corregí la fecha de la 1ª cuota:</span>
-      <input type="date" id="pdNuevaFechaInicio" style="max-width:160px">
-      <button class="btn btn-ghost btn-sm" onclick="corregirFechasPrestamoDesdeModal()">Corregir fechas</button>
-    </div>
     <div class="row" style="margin-bottom:12px">
       <button class="btn btn-ghost btn-sm" onclick="descargarPdfPrestamo()">📄 Cronograma (PDF)</button>
     </div>
@@ -744,9 +741,15 @@ function verCliente(clienteId){
     ? '<div class="empty">Sin préstamos.</div>'
     : prestamos.map(p=>{
         const pagado = p.cuotas.filter(cu=>cu.pagado).length;
-        return `<div class="row" style="justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)">
-          <span class="clickable" onclick="verPrestamo('${p.id}')">${p.frecuencia} · ${p.cuotas.length} cuotas — ${fmt(p.montoTotal)}</span>
-          <span class="muted">${pagado}/${p.cuotas.length} pagadas</span>
+        return `<div style="padding:10px 0;border-bottom:1px solid var(--line)">
+          <div class="row" style="justify-content:space-between">
+            <span class="clickable" onclick="verPrestamo('${p.id}')">${formatNumeroPrestamo(p.numero)} — ${p.frecuencia} · ${p.cuotas.length} cuotas — ${fmt(p.montoTotal)}</span>
+            <span class="muted">${pagado}/${p.cuotas.length} pagadas</span>
+          </div>
+          <div class="row" style="margin-top:6px">
+            <button class="btn btn-ghost btn-sm" onclick="editarPrestamo('${p.id}')">Modificar</button>
+            <button class="btn btn-danger btn-sm" onclick="borrarPrestamo('${p.id}')">Eliminar</button>
+          </div>
         </div>`;
       }).join('');
   openModal('modalClienteDetalle');
@@ -869,8 +872,68 @@ async function borrarPlan(id){
   catch(err){ mostrarError(err, 'No se pudo borrar'); }
 }
 
+function setCamposPrestamoHabilitados(habilitado){
+  ['pClienteId','pFrecuencia','pCuotas','pMontoPrestado','pModoCalculo','pComision','pMontoManual'].forEach(id=>{
+    document.getElementById(id).disabled = !habilitado;
+  });
+  document.getElementById('planesChips').style.opacity = habilitado ? '1' : '.4';
+  document.getElementById('planesChips').style.pointerEvents = habilitado ? 'auto' : 'none';
+}
+function editarPrestamo(prestamoId){
+  const p = PRESTAMOS.find(x=>x.id===prestamoId);
+  if(!p) return;
+  closeModal('modalClienteDetalle');
+  openPrestamoModal(p.clienteId);
+  document.getElementById('prestamoModalTitle').textContent = 'Editar préstamo ' + formatNumeroPrestamo(p.numero);
+  document.getElementById('btnGuardarPrestamo').textContent = 'Guardar cambios';
+  document.getElementById('pPrestamoIdEditando').value = p.id;
+  document.getElementById('pClienteId').value = p.clienteId;
+  document.getElementById('pClienteId').disabled = true;
+  document.getElementById('pFrecuencia').value = p.frecuencia;
+  document.getElementById('pCuotas').value = p.cantCuotas;
+  document.getElementById('pFechaInicio').value = p.fechaInicio;
+  document.getElementById('pMontoPrestado').value = p.montoPrestado;
+  document.getElementById('pModoCalculo').value = p.modoCalculo;
+  if(p.modoCalculo==='auto'){ document.getElementById('pComision').value = p.comisionPct; }
+  else { document.getElementById('pMontoManual').value = p.montoTotal; }
+  document.getElementById('pCobraMora').checked = p.aplicaMora!==false;
+  document.getElementById('pMoraTipo').value = p.moraTipo||'porcentaje';
+  document.getElementById('pMoraValor').value = p.moraValor||0;
+  document.getElementById('pObs').value = p.observaciones||'';
+  toggleModoCalculo(); toggleCobraMora(); recalcPreview();
+  const hayPagos = p.cuotas.some(c=>c.pagado);
+  if(hayPagos){
+    document.getElementById('pAvisoPagos').style.display = 'block';
+    setCamposPrestamoHabilitados(false);
+  }
+}
+async function borrarPrestamo(prestamoId){
+  const p = PRESTAMOS.find(x=>x.id===prestamoId);
+  if(!p) return;
+  const hayPagos = p.cuotas.some(c=>c.pagado);
+  const msg = hayPagos
+    ? '¡Ojo! Este préstamo tiene pagos registrados. Si lo borrás, esos cobros van a desaparecer de las estadísticas. ¿Seguro que querés borrarlo?'
+    : '¿Borrar este préstamo? No se puede deshacer.';
+  if(!confirm(msg)) return;
+  try{
+    const batch = db.batch();
+    p.cuotas.forEach(c=>batch.delete(db.collection('prestamos').doc(p.id).collection('cuotas').doc(c.id)));
+    batch.delete(db.collection('prestamos').doc(p.id));
+    await batch.commit();
+    await cargarPrestamos();
+    renderPrestamos(); renderDashboard();
+    if(currentClienteDetalle) verCliente(currentClienteDetalle.id);
+    toast('Préstamo borrado');
+  }catch(err){ mostrarError(err, 'No se pudo borrar el préstamo'); }
+}
 function openPrestamoModal(clienteIdPre){
+  document.getElementById('prestamoModalTitle').textContent = 'Nuevo préstamo';
+  document.getElementById('btnGuardarPrestamo').textContent = 'Generar préstamo';
+  document.getElementById('pPrestamoIdEditando').value = '';
+  document.getElementById('pAvisoPagos').style.display = 'none';
+  setCamposPrestamoHabilitados(true);
   document.getElementById('pClienteId').innerHTML = CLIENTES.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+  document.getElementById('pClienteId').disabled = false;
   if(clienteIdPre) document.getElementById('pClienteId').value = clienteIdPre;
   document.getElementById('pFrecuencia').value='semanal';
   document.getElementById('pCuotas').value=1;
@@ -954,6 +1017,7 @@ async function obtenerProximoNumeroPrestamo(){
   });
 }
 async function guardarPrestamo(){
+  const idEditando = document.getElementById('pPrestamoIdEditando').value;
   const clienteId = document.getElementById('pClienteId').value;
   if(!clienteId){ toast('Elegí un cliente', true); return; }
   const frecuencia = document.getElementById('pFrecuencia').value;
@@ -968,35 +1032,73 @@ async function guardarPrestamo(){
   const montoCuota = Math.round((montoTotal/cantCuotas)*100)/100;
   const aplicaMora = document.getElementById('pCobraMora').checked;
 
-  const prestamo = {
+  const datosPrestamo = {
     clienteId, frecuencia, cantCuotas, montoPrestado, montoTotal, modoCalculo,
     comisionPct: modoCalculo==='auto' ? (parseFloat(document.getElementById('pComision').value)||0) : null,
     aplicaMora,
     moraTipo: document.getElementById('pMoraTipo').value,
     moraValor: parseFloat(document.getElementById('pMoraValor').value)||0,
     observaciones: document.getElementById('pObs').value.trim(),
-    estado: 'activo', fechaInicio,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    fechaInicio
   };
+
   try{
-    const numero = await obtenerProximoNumeroPrestamo();
-    prestamo.numero = numero;
-    const ref = await db.collection('prestamos').add(prestamo);
-    const batch = db.batch();
-    for(let i=0;i<cantCuotas;i++){
-      let fecha;
-      if(frecuencia==='semanal') fecha = addDias(fechaInicio, i*7);
-      else if(frecuencia==='quincenal') fecha = addDias(fechaInicio, i*15);
-      else fecha = addMeses(fechaInicio, i);
-      const cuotaRef = ref.collection('cuotas').doc();
-      batch.set(cuotaRef, { numero:i+1, fechaVencimiento:fecha, monto:montoCuota, pagado:false });
+    if(idEditando){
+      const p = PRESTAMOS.find(x=>x.id===idEditando);
+      const hayPagos = p.cuotas.some(c=>c.pagado);
+      const prestamoRef = db.collection('prestamos').doc(idEditando);
+      if(hayPagos){
+        // Solo se puede tocar fecha, mora y observaciones. Recalcula fechas de las cuotas NO pagadas.
+        await prestamoRef.update({ fechaInicio, aplicaMora, moraTipo: datosPrestamo.moraTipo, moraValor: datosPrestamo.moraValor, observaciones: datosPrestamo.observaciones });
+        const batch = db.batch();
+        p.cuotas.forEach((c,idx)=>{
+          if(c.pagado) return;
+          let fecha;
+          if(p.frecuencia==='semanal') fecha = addDias(fechaInicio, idx*7);
+          else if(p.frecuencia==='quincenal') fecha = addDias(fechaInicio, idx*15);
+          else fecha = addMeses(fechaInicio, idx);
+          batch.update(db.collection('prestamos').doc(idEditando).collection('cuotas').doc(c.id), {fechaVencimiento: fecha});
+        });
+        await batch.commit();
+      } else {
+        // Sin pagos: se puede editar todo, se regeneran las cuotas desde cero.
+        await prestamoRef.update(datosPrestamo);
+        const batch = db.batch();
+        p.cuotas.forEach(c=>batch.delete(db.collection('prestamos').doc(idEditando).collection('cuotas').doc(c.id)));
+        for(let i=0;i<cantCuotas;i++){
+          let fecha;
+          if(frecuencia==='semanal') fecha = addDias(fechaInicio, i*7);
+          else if(frecuencia==='quincenal') fecha = addDias(fechaInicio, i*15);
+          else fecha = addMeses(fechaInicio, i);
+          batch.set(db.collection('prestamos').doc(idEditando).collection('cuotas').doc(), { numero:i+1, fechaVencimiento:fecha, monto:montoCuota, pagado:false });
+        }
+        await batch.commit();
+      }
+      closeModal('modalPrestamo');
+      await cargarPrestamos();
+      renderPrestamos(); renderDashboard();
+      toast('Préstamo actualizado');
+    } else {
+      datosPrestamo.estado = 'activo';
+      datosPrestamo.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      const numero = await obtenerProximoNumeroPrestamo();
+      datosPrestamo.numero = numero;
+      const ref = await db.collection('prestamos').add(datosPrestamo);
+      const batch = db.batch();
+      for(let i=0;i<cantCuotas;i++){
+        let fecha;
+        if(frecuencia==='semanal') fecha = addDias(fechaInicio, i*7);
+        else if(frecuencia==='quincenal') fecha = addDias(fechaInicio, i*15);
+        else fecha = addMeses(fechaInicio, i);
+        batch.set(ref.collection('cuotas').doc(), { numero:i+1, fechaVencimiento:fecha, monto:montoCuota, pagado:false });
+      }
+      await batch.commit();
+      closeModal('modalPrestamo');
+      await cargarPrestamos();
+      renderPrestamos(); renderDashboard();
+      toast('Préstamo generado');
     }
-    await batch.commit();
-    closeModal('modalPrestamo');
-    await cargarPrestamos();
-    renderPrestamos(); renderDashboard();
-    toast('Préstamo generado');
-  }catch(err){ mostrarError(err, 'No se pudo generar el préstamo'); }
+  }catch(err){ mostrarError(err, 'No se pudo guardar el préstamo'); }
 }
 
 function renderPrestamos(){
@@ -1025,7 +1127,7 @@ function renderPrestamos(){
       <td>${fmt(p.montoTotal)}</td><td>${fmt(cobrado)}</td>
       <td>${p.aplicaMora===false ? '<span class="muted">No</span>' : '<span class="muted">Sí</span>'}</td>
       <td>${estadoBadge}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="verPrestamo('${p.id}')">Ver</button></td>
+      <td><button class="btn btn-ghost btn-sm" onclick="verPrestamo('${p.id}')">Ver</button> <button class="btn btn-danger btn-sm" onclick="borrarPrestamo('${p.id}')">Borrar</button></td>
     </tr>`;
   }).join('');
 }
@@ -1036,7 +1138,6 @@ function verPrestamo(id){
   const cliente = CLIENTES.find(c=>c.id===p.clienteId);
   document.getElementById('pdTitulo').textContent = `${formatNumeroPrestamo(p.numero)} — ${cliente?cliente.nombre:'—'} — ${p.frecuencia} · ${p.cantCuotas} cuotas`;
   document.getElementById('pdInfo').innerHTML = `Prestado: ${fmt(p.montoPrestado)} · Total: ${fmt(p.montoTotal)} · Cuota: ${fmt(p.montoTotal/p.cantCuotas)} · Mora: ${p.aplicaMora===false?'no cobra':'sí cobra'}${p.observaciones?('<br>'+p.observaciones):''}`;
-  document.getElementById('pdNuevaFechaInicio').value = p.fechaInicio;
   document.getElementById('pdCuotas').innerHTML = p.cuotas.map(c=>{
     const est = estadoCuota(c);
     const badge = c.pagado?'<span class="badge badge-ok">Pagada</span>': est==='atrasada'?'<span class="badge badge-bad">Atrasada</span>': est==='hoy'?'<span class="badge badge-warn">Hoy</span>':'<span class="muted">Pendiente</span>';
