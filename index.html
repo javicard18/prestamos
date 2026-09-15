@@ -205,6 +205,16 @@
         <button class="btn btn-dark" onclick="guardarEmpresa()">Guardar datos de la empresa</button>
       </div>
       <div class="card">
+        <h2>Tasa de interés por período</h2>
+        <p class="muted">Es el % que se cobra por cada período que dura el préstamo (ej: mensual 20% → 3 cuotas mensuales sugiere 60%, porque son 3 períodos). Se usa para pre-llenar el % en Planes y Préstamos — siempre editable a mano.</p>
+        <div class="grid3">
+          <div class="field"><label>Semanal (%)</label><input type="number" step="0.01" id="cfgTasaSemanal"></div>
+          <div class="field"><label>Quincenal (%)</label><input type="number" step="0.01" id="cfgTasaQuincenal"></div>
+          <div class="field"><label>Mensual (%)</label><input type="number" step="0.01" id="cfgTasaMensual"></div>
+        </div>
+        <button class="btn btn-dark" onclick="guardarTasas()">Guardar tasas</button>
+      </div>
+      <div class="card">
         <h2>Mora por defecto</h2>
         <p class="muted">Se sugiere este valor al crear un préstamo nuevo. Se ajusta por cada préstamo.</p>
         <div class="grid2">
@@ -407,7 +417,7 @@ const secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
 const secondaryAuth = secondaryApp.auth();
 
 let CLIENTES = [], PLANES = [], PRESTAMOS = [];
-let CONFIG = { moraTipo:'porcentaje', moraValor:1.8, empresaNombre:'', empresaTelefono:'', empresaDireccion:'', empresaLogo:'' };
+let CONFIG = { moraTipo:'porcentaje', moraValor:1.8, empresaNombre:'', empresaTelefono:'', empresaDireccion:'', empresaLogo:'', tasaSemanal:20, tasaQuincenal:20, tasaMensual:20 };
 let currentClienteDetalle = null, currentPrestamoDetalle = null, currentCobro = null;
 let planTipoInteres = 'porcentaje';
 
@@ -478,6 +488,9 @@ async function cargarConfig(){
   if(snap.exists){ CONFIG = Object.assign(CONFIG, snap.data()); }
   document.getElementById('cfgMoraTipo').value = CONFIG.moraTipo;
   document.getElementById('cfgMoraValor').value = CONFIG.moraValor;
+  document.getElementById('cfgTasaSemanal').value = CONFIG.tasaSemanal;
+  document.getElementById('cfgTasaQuincenal').value = CONFIG.tasaQuincenal;
+  document.getElementById('cfgTasaMensual').value = CONFIG.tasaMensual;
   document.getElementById('empresaNombre').value = CONFIG.empresaNombre||'';
   document.getElementById('empresaTelefono').value = CONFIG.empresaTelefono||'';
   document.getElementById('empresaDireccion').value = CONFIG.empresaDireccion||'';
@@ -489,6 +502,20 @@ function actualizarLabelMora(){
   document.getElementById('cfgMoraValorLbl').textContent = tipo==='porcentaje' ? 'Valor (% por día)' : 'Valor ($ por día)';
 }
 document.getElementById('cfgMoraTipo').addEventListener('change', actualizarLabelMora);
+async function guardarTasas(){
+  try{
+    CONFIG.tasaSemanal = parseFloat(document.getElementById('cfgTasaSemanal').value)||0;
+    CONFIG.tasaQuincenal = parseFloat(document.getElementById('cfgTasaQuincenal').value)||0;
+    CONFIG.tasaMensual = parseFloat(document.getElementById('cfgTasaMensual').value)||0;
+    await db.collection('config').doc('general').set(CONFIG, {merge:true});
+    toast('Tasas guardadas');
+  }catch(err){ mostrarError(err, 'No se pudieron guardar las tasas'); }
+}
+function tasaPeriodo(frecuencia){
+  if(frecuencia==='semanal') return CONFIG.tasaSemanal||0;
+  if(frecuencia==='quincenal') return CONFIG.tasaQuincenal||0;
+  return CONFIG.tasaMensual||0;
+}
 async function guardarConfig(){
   try{
     CONFIG.moraTipo = document.getElementById('cfgMoraTipo').value;
@@ -714,8 +741,9 @@ function openPlanModal(){
 }
 function sugerirInteresPlan(){
   const cuotas = parseInt(document.getElementById('planCuotas').value)||1;
-  let sugerida = cuotas===1 ? 20 : 60;
-  document.getElementById('planInteresSugTxt').textContent = `(sugerido: ${sugerida}%)`;
+  const frecuencia = document.getElementById('planFrecuencia').value;
+  const sugerida = tasaPeriodo(frecuencia) * cuotas;
+  document.getElementById('planInteresSugTxt').textContent = `(sugerido: ${sugerida}% — ${tasaPeriodo(frecuencia)}% × ${cuotas} cuota(s))`;
   if(!document.getElementById('planInteresPct').value){ document.getElementById('planInteresPct').value = sugerida; }
   recalcPlanPreview();
 }
@@ -756,6 +784,36 @@ async function guardarPlan(){
 function montoDevolverPlan(p){
   return p.tipoInteres==='porcentaje' ? p.montoPrestar + p.montoPrestar*(p.interesPct/100) : p.montoPrestar + p.interesFijo;
 }
+function generarOfertaPdf(planId){
+  const p = PLANES.find(x=>x.id===planId);
+  if(!p) return;
+  const devolver = montoDevolverPlan(p);
+  const cuotaValor = Math.round((devolver/p.cuotas)*100)/100;
+  const fechaInicio = todayStr();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  let y = pdfHeader(doc, 18);
+  doc.setFontSize(13); doc.text('Propuesta de préstamo', 14, y+6); y+=18;
+  doc.setFontSize(11);
+  doc.text(`Plan: ${p.nombre}`, 14, y); y+=7;
+  doc.text(`Te prestamos: ${fmt(p.montoPrestar)}`, 14, y); y+=7;
+  doc.text(`Total a devolver: ${fmt(devolver)}  en ${p.cuotas} cuota(s) ${p.frecuencia}(es)`, 14, y); y+=12;
+  doc.setFontSize(10);
+  doc.text('Cuota', 14, y); doc.text('Fecha estimada', 55, y); doc.text('Monto', 120, y);
+  y+=5; doc.line(14,y,196,y); y+=6;
+  for(let i=0;i<p.cuotas;i++){
+    let fecha;
+    if(p.frecuencia==='semanal') fecha = addDias(fechaInicio, i*7);
+    else if(p.frecuencia==='quincenal') fecha = addDias(fechaInicio, i*15);
+    else fecha = addMeses(fechaInicio, i);
+    doc.text(`#${i+1}`, 14, y); doc.text(fmtFecha(fecha), 55, y); doc.text(fmt(cuotaValor), 120, y);
+    y+=7; if(y>270){ doc.addPage(); y=20; }
+  }
+  y+=6;
+  doc.setFontSize(8); doc.setTextColor(120);
+  doc.text('Fechas estimadas a partir de la fecha de aprobación. Propuesta sujeta a confirmación.', 14, y);
+  doc.save(`propuesta-${p.nombre.replace(/[^a-z0-9]/gi,'_')}.pdf`);
+}
 function renderPlanes(){
   const tbody = document.getElementById('tablaPlanes');
   if(PLANES.length===0){ tbody.innerHTML = `<tr><td colspan="7" class="empty">Sin planes todavía.</td></tr>`; return; }
@@ -764,7 +822,10 @@ function renderPlanes(){
     const interesTxt = p.tipoInteres==='porcentaje' ? `${p.interesPct}%` : fmt(p.interesFijo)+' fijo';
     return `<tr>
       <td>${p.nombre}</td><td>${p.frecuencia}</td><td>${p.cuotas}</td><td>${fmt(p.montoPrestar)}</td><td>${interesTxt}</td><td>${fmt(devolver)}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="borrarPlan('${p.id}')">Borrar</button></td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="generarOfertaPdf('${p.id}')">📄 Oferta</button>
+        <button class="btn btn-danger btn-sm" onclick="borrarPlan('${p.id}')">Borrar</button>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -814,8 +875,9 @@ function aplicarPlan(planId, el){
 }
 function sugerirComision(){
   const cuotas = parseInt(document.getElementById('pCuotas').value)||1;
-  let sugerida = cuotas===1 ? 20 : 60;
-  document.getElementById('comisionSugeridaTxt').textContent = `(sugerido: ${sugerida}%)`;
+  const frecuencia = document.getElementById('pFrecuencia').value;
+  const sugerida = tasaPeriodo(frecuencia) * cuotas;
+  document.getElementById('comisionSugeridaTxt').textContent = `(sugerido: ${sugerida}% — ${tasaPeriodo(frecuencia)}% × ${cuotas} cuota(s))`;
   if(!document.getElementById('pComision').value){ document.getElementById('pComision').value = sugerida; }
   recalcPreview();
 }
