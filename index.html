@@ -283,7 +283,7 @@
     </div>
     <div class="field"><label>Dirección (opcional)</label><input type="text" id="clienteDireccion"></div>
     <div class="field"><label>Observaciones (opcional)</label><textarea id="clienteObs"></textarea></div>
-    <button class="btn btn-gold btn-block" onclick="guardarCliente()">Guardar</button>
+    <button class="btn btn-gold btn-block" id="btnGuardarCliente" onclick="conBloqueoBoton('btnGuardarCliente', guardarCliente)">Guardar</button>
   </div>
 </div>
 
@@ -331,7 +331,7 @@
       <div class="row" style="justify-content:space-between"><span class="muted">Importe a devolver</span><b id="planPrevDevolver">$0</b></div>
       <div class="row" style="justify-content:space-between"><span class="muted">Valor de cada cuota</span><b id="planPrevCuota">$0</b></div>
     </div>
-    <button class="btn btn-gold btn-block" onclick="guardarPlan()" style="margin-top:12px">Guardar</button>
+    <button class="btn btn-gold btn-block" id="btnGuardarPlan" onclick="conBloqueoBoton('btnGuardarPlan', guardarPlan)" style="margin-top:12px">Guardar</button>
   </div>
 </div>
 
@@ -387,7 +387,7 @@
       <div class="field"><label>Mora — valor</label><input type="number" step="0.01" id="pMoraValor"></div>
     </div>
     <div class="field"><label>Observaciones</label><textarea id="pObs"></textarea></div>
-    <button class="btn btn-gold btn-block" id="btnGuardarPrestamo" onclick="guardarPrestamo()">Generar préstamo</button>
+    <button class="btn btn-gold btn-block" id="btnGuardarPrestamo" onclick="conBloqueoBoton('btnGuardarPrestamo', guardarPrestamo)">Generar préstamo</button>
   </div>
 </div>
 
@@ -418,7 +418,7 @@
       </div>
     </div>
     <div class="field"><label>Monto a cobrar ($)</label><input type="number" step="0.01" id="cobroMonto"></div>
-    <button class="btn btn-gold btn-block" onclick="confirmarCobro()">Confirmar pago</button>
+    <button class="btn btn-gold btn-block" id="btnConfirmarCobro" onclick="conBloqueoBoton('btnConfirmarCobro', confirmarCobro)">Confirmar pago</button>
   </div>
 </div>
 
@@ -692,6 +692,19 @@ function openClienteModal(cliente){
   document.getElementById('clienteDireccion').value = cliente? cliente.direccion||'' : '';
   document.getElementById('clienteObs').value = cliente? cliente.observaciones||'' : '';
   openModal('modalCliente');
+}
+let _botonesOcupados = {};
+async function conBloqueoBoton(idBoton, fn){
+  if(_botonesOcupados[idBoton]) return;
+  _botonesOcupados[idBoton] = true;
+  const btn = document.getElementById(idBoton);
+  const textoOriginal = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Guardando...'; }
+  try{ await fn(); }
+  finally{
+    _botonesOcupados[idBoton] = false;
+    if(btn){ btn.disabled = false; btn.textContent = textoOriginal; }
+  }
 }
 async function guardarCliente(){
   const id = document.getElementById('clienteId').value;
