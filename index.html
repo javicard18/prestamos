@@ -5,7 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Préstamos</title>
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#0F2A2E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Préstamos">
 <style>
   :root{
     --bg:#0F2A2E; --bg-soft:#153A3F; --panel:#FFFFFF; --panel-2:#F4F7F6;
@@ -1094,6 +1100,7 @@ async function guardarPrestamo(){
     } else {
       datosPrestamo.estado = 'activo';
       datosPrestamo.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      datosPrestamo.fechaOtorgado = todayStr();
       const numero = await obtenerProximoNumeroPrestamo();
       datosPrestamo.numero = numero;
       const ref = await db.collection('prestamos').add(datosPrestamo);
@@ -1267,6 +1274,24 @@ function descargarPdfPrestamo(){
     doc.text(fmt(c.monto), 105, y); doc.text(c.pagado?'Pagada':'Pendiente', 150, y);
     y+=7; if(y>270){ doc.addPage(); y=20; }
   });
+  y+=6;
+  if(y>250){ doc.addPage(); y=20; }
+  if(p.aplicaMora!==false){
+    const textoMora = p.moraTipo==='fijo'
+      ? `${fmt(p.moraValor)} por cada día de atraso`
+      : `${p.moraValor}% diario sobre el saldo adeudado`;
+    doc.setFontSize(10); doc.setFont(undefined,'bold');
+    doc.text('Condiciones de pago', 14, y); y+=6;
+    doc.setFont(undefined,'normal');
+    const parrafo = `El pago de cada cuota deberá efectuarse en la fecha de vencimiento indicada en el presente cronograma, sin necesidad de aviso previo. Vencido dicho plazo sin que se registre el pago correspondiente, se aplicará un recargo por mora de ${textoMora}, el cual se devengará hasta la cancelación total de la cuota adeudada. Se recomienda priorizar el pago en término para evitar este recargo.`;
+    const lineas = doc.splitTextToSize(parrafo, 182);
+    doc.text(lineas, 14, y);
+    y += lineas.length*5 + 4;
+  } else {
+    doc.setFontSize(9); doc.setTextColor(120);
+    doc.text('Este préstamo no tiene recargo por mora en caso de atraso.', 14, y);
+    doc.setTextColor(0);
+  }
   doc.save(`cronograma-${(cliente?cliente.nombre:'cliente')}.pdf`);
 }
 function generarReciboPdf(prestamoId, numeroCuota){
@@ -1311,6 +1336,20 @@ function enviarRecordatorio(prestamoId, numeroCuota, atrasada){
 const MESES_NOMBRE = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 function nombreMes(ym){ const [y,m] = ym.split('-'); return `${MESES_NOMBRE[parseInt(m)-1]} ${y}`; }
 
+function obtenerMesOtorgado(p){
+  if(p.fechaOtorgado) return p.fechaOtorgado.slice(0,7);
+  if(p.createdAt && typeof p.createdAt.toDate === 'function'){
+    try{ return p.createdAt.toDate().toISOString().slice(0,7); }catch(e){}
+  }
+  if(p.fechaInicio){
+    let est;
+    if(p.frecuencia==='semanal') est = addDias(p.fechaInicio, -7);
+    else if(p.frecuencia==='quincenal') est = addDias(p.fechaInicio, -15);
+    else est = addMeses(p.fechaInicio, -1);
+    return est.slice(0,7);
+  }
+  return '';
+}
 function renderEstadisticas(){
   const mesActual = todayStr().slice(0,7);
   let totalPrestado=0, totalCobrado=0, totalPorCobrar=0, cuotasTotales=0;
@@ -1319,7 +1358,7 @@ function renderEstadisticas(){
   PRESTAMOS.forEach(p=>{
     totalPrestado += p.montoPrestado||0;
     const capitalPorCuota = (p.montoPrestado||0) / (p.cantCuotas||1);
-    const mesOtorgado = p.createdAt && p.createdAt.toDate ? p.createdAt.toDate().toISOString().slice(0,7) : (p.fechaInicio||'').slice(0,7);
+    const mesOtorgado = obtenerMesOtorgado(p);
     if(mesOtorgado){
       porMes[mesOtorgado] = porMes[mesOtorgado] || {prestado:0,cobrado:0,ganancia:0,nuevos:0};
       porMes[mesOtorgado].prestado += p.montoPrestado||0;
@@ -1380,6 +1419,13 @@ function calcularTotalesEntreFechas(){
     if(c.pagado && c.fechaPago && c.fechaPago>=desde && c.fechaPago<=hasta){ total += c.montoPagado||c.monto; cant++; }
   }));
   document.getElementById('statRango').innerHTML = `<b>${fmt(total)}</b> cobrados en ${cant} cuota(s), entre ${fmtFecha(desde)} y ${fmtFecha(hasta)}.`;
+}
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
 }
 </script>
 </body>
