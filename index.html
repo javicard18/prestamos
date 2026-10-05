@@ -327,23 +327,29 @@
           <option value="mensual">Mensual</option>
         </select>
       </div>
-      <div class="field"><label>Cantidad de cuotas</label><input type="number" min="1" id="planCuotas" value="1" oninput="sugerirInteresPlan()"></div>
+      <div class="field"><label>Cantidad de cuotas</label><input type="number" min="1" id="planCuotas" value="1" oninput="onPlanCuotasChange()"></div>
     </div>
-    <div class="field"><label>Importe a prestar ($)</label><input type="number" step="0.01" id="planMontoPrestar" oninput="recalcPlanPreview()"></div>
+    <div class="field"><label>Importe a prestar ($)</label><input type="number" step="0.01" id="planMontoPrestar" oninput="onPlanMontoChange()"></div>
     <div class="field">
       <label>Calcular interés por</label>
       <div class="segBtns">
         <button type="button" class="sel" id="segPorcentaje" onclick="setTipoInteresPlan('porcentaje')">Porcentaje</button>
         <button type="button" id="segImporte" onclick="setTipoInteresPlan('importe')">Importe fijo</button>
+        <button type="button" id="segPersonalizado" onclick="setTipoInteresPlan('personalizado')">Cuotas manuales</button>
       </div>
     </div>
     <div class="field" id="planInteresPctBox"><label>Interés (%) <span class="helpTxt" id="planInteresSugTxt"></span></label><input type="number" step="0.01" id="planInteresPct" oninput="recalcPlanPreview()"></div>
     <div class="field" id="planInteresFijoBox" style="display:none"><label>Interés fijo ($)</label><input type="number" step="0.01" id="planInteresFijo" oninput="recalcPlanPreview()"></div>
+    <div id="planCuotasPersonalizadasBox" style="display:none">
+      <p class="helpTxt">Cargá el monto de cada cuota (pueden ser distintas entre sí). El % muestra qué parte del préstamo representa cada una, como dato de referencia.</p>
+      <div id="planCuotasPersonalizadasList"></div>
+    </div>
     <div class="card" style="background:var(--panel-2);padding:12px 14px">
       <div class="row" style="justify-content:space-between"><span class="muted">Importe a devolver</span><b id="planPrevDevolver">$0</b></div>
-      <div class="row" style="justify-content:space-between;align-items:center"><span class="muted">Valor de cada cuota (editable)</span><input type="number" step="0.01" id="planPrevCuota" oninput="recalcDesdeCuotaPlan()" style="max-width:150px;text-align:right;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-weight:600"></div>
+      <div class="row" id="planFilaCuotaUniforme" style="justify-content:space-between;align-items:center"><span class="muted">Valor de cada cuota (editable)</span><input type="number" step="0.01" id="planPrevCuota" oninput="recalcDesdeCuotaPlan()" style="max-width:150px;text-align:right;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-weight:600"></div>
     </div>
     <button class="btn btn-gold btn-block" id="btnGuardarPlan" onclick="conBloqueoBoton('btnGuardarPlan', guardarPlan)" style="margin-top:12px">Guardar</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:8px" onclick="vistaPreviaPlanPdf()">📄 Vista previa / imprimir cuadro de cuotas</button>
   </div>
 </div>
 
@@ -364,7 +370,7 @@
           <option value="mensual">Mensual</option>
         </select>
       </div>
-      <div class="field"><label>Cantidad de cuotas</label><input type="number" min="1" id="pCuotas" value="1" onchange="sugerirComision()"></div>
+      <div class="field"><label>Cantidad de cuotas</label><input type="number" min="1" id="pCuotas" value="1" onchange="onPCuotasChange()"></div>
     </div>
     <div class="field"><label>Fecha primer vencimiento</label><input type="date" id="pFechaInicio"></div>
     <div class="field"><label>Monto prestado ($)</label><input type="number" step="0.01" id="pMontoPrestado" oninput="recalcPreview()"></div>
@@ -373,6 +379,7 @@
       <select id="pModoCalculo" onchange="toggleModoCalculo()">
         <option value="auto">Automático (capital + % comisión)</option>
         <option value="manual">Yo cargo el monto final</option>
+        <option value="personalizado">Cuotas manuales (cada una distinta)</option>
       </select>
     </div>
     <div id="bloqueAuto" class="field">
@@ -383,9 +390,13 @@
       <label>Monto total a devolver ($)</label>
       <input type="number" step="0.01" id="pMontoManual" oninput="recalcPreview()">
     </div>
+    <div id="bloquePersonalizado" style="display:none">
+      <p class="helpTxt">Cargá el monto de cada cuota. El % muestra qué parte del préstamo representa, como dato de referencia.</p>
+      <div id="pCuotasPersonalizadasList"></div>
+    </div>
     <div class="card" style="background:var(--panel-2);padding:12px 14px;margin:10px 0">
       <div class="row" style="justify-content:space-between"><span class="muted">Total a devolver</span><b id="prevTotal">$0</b></div>
-      <div class="row" style="justify-content:space-between;align-items:center"><span class="muted">Valor de cada cuota (editable)</span><input type="number" step="0.01" id="prevCuota" oninput="recalcDesdeCuotaPrestamo()" style="max-width:150px;text-align:right;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-weight:600"></div>
+      <div class="row" id="pFilaCuotaUniforme" style="justify-content:space-between;align-items:center"><span class="muted">Valor de cada cuota (editable)</span><input type="number" step="0.01" id="prevCuota" oninput="recalcDesdeCuotaPrestamo()" style="max-width:150px;text-align:right;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-weight:600"></div>
     </div>
     <div class="checkline"><input type="checkbox" id="pCobraMora" checked onchange="toggleCobraMora()"><label for="pCobraMora">Este préstamo cobra mora por atraso</label></div>
     <div id="bloqueMora" class="grid2">
@@ -794,8 +805,12 @@ function setTipoInteresPlan(tipo){
   planTipoInteres = tipo;
   document.getElementById('segPorcentaje').classList.toggle('sel', tipo==='porcentaje');
   document.getElementById('segImporte').classList.toggle('sel', tipo==='importe');
+  document.getElementById('segPersonalizado').classList.toggle('sel', tipo==='personalizado');
   document.getElementById('planInteresPctBox').style.display = tipo==='porcentaje'?'block':'none';
   document.getElementById('planInteresFijoBox').style.display = tipo==='importe'?'block':'none';
+  document.getElementById('planCuotasPersonalizadasBox').style.display = tipo==='personalizado'?'block':'none';
+  document.getElementById('planFilaCuotaUniforme').style.display = tipo==='personalizado'?'none':'flex';
+  if(tipo==='personalizado') renderCuotasPersonalizadasPlan();
   recalcPlanPreview();
 }
 function openPlanModal(){
@@ -805,6 +820,7 @@ function openPlanModal(){
   document.getElementById('planMontoPrestar').value='';
   document.getElementById('planInteresPct').value='';
   document.getElementById('planInteresFijo').value='';
+  document.getElementById('planCuotasPersonalizadasList').innerHTML='';
   setTipoInteresPlan('porcentaje');
   sugerirInteresPlan();
   openModal('modalPlan');
@@ -817,9 +833,48 @@ function sugerirInteresPlan(){
   if(!document.getElementById('planInteresPct').value){ document.getElementById('planInteresPct').value = sugerida; }
   recalcPlanPreview();
 }
+function onPlanCuotasChange(){
+  sugerirInteresPlan();
+  if(planTipoInteres==='personalizado') renderCuotasPersonalizadasPlan();
+}
+function onPlanMontoChange(){
+  recalcPlanPreview();
+  if(planTipoInteres==='personalizado') actualizarPorcentajesCuotasPlan();
+}
+function renderCuotasPersonalizadasPlan(){
+  const cuotas = parseInt(document.getElementById('planCuotas').value)||1;
+  const cont = document.getElementById('planCuotasPersonalizadasList');
+  const valoresPrevios = Array.from(cont.querySelectorAll('.cuotaManualInput')).map(i=>i.value);
+  let html = '';
+  for(let i=0;i<cuotas;i++){
+    const val = valoresPrevios[i] || '';
+    html += `<div class="row" style="justify-content:space-between;align-items:center;margin:6px 0">
+      <span style="min-width:62px">Cuota ${i+1}</span>
+      <input type="number" step="0.01" class="cuotaManualInput" data-idx="${i}" value="${val}" oninput="actualizarPorcentajesCuotasPlan()" style="flex:1;max-width:150px;border:1px solid var(--line);border-radius:6px;padding:6px 8px">
+      <span class="muted" style="min-width:55px;text-align:right" id="planPctCuota${i}">0%</span>
+    </div>`;
+  }
+  cont.innerHTML = html;
+  actualizarPorcentajesCuotasPlan();
+}
+function leerCuotasPersonalizadasPlan(){
+  return Array.from(document.querySelectorAll('#planCuotasPersonalizadasList .cuotaManualInput')).map(i=>parseFloat(i.value)||0);
+}
+function actualizarPorcentajesCuotasPlan(){
+  const monto = parseFloat(document.getElementById('planMontoPrestar').value)||0;
+  const valores = leerCuotasPersonalizadasPlan();
+  const devolver = valores.reduce((s,v)=>s+v,0);
+  valores.forEach((v,i)=>{
+    const pct = monto>0 ? (v/monto*100).toFixed(1) : '0';
+    const el = document.getElementById('planPctCuota'+i);
+    if(el) el.textContent = pct+'%';
+  });
+  document.getElementById('planPrevDevolver').textContent = fmt(devolver);
+}
 function recalcPlanPreview(){
   const monto = parseFloat(document.getElementById('planMontoPrestar').value)||0;
   const cuotas = parseInt(document.getElementById('planCuotas').value)||1;
+  if(planTipoInteres==='personalizado'){ actualizarPorcentajesCuotasPlan(); return; }
   let devolver;
   if(planTipoInteres==='porcentaje'){
     const pct = parseFloat(document.getElementById('planInteresPct').value)||0;
@@ -854,7 +909,8 @@ async function guardarPlan(){
     montoPrestar,
     tipoInteres: planTipoInteres,
     interesPct: planTipoInteres==='porcentaje' ? (parseFloat(document.getElementById('planInteresPct').value)||0) : null,
-    interesFijo: planTipoInteres==='importe' ? (parseFloat(document.getElementById('planInteresFijo').value)||0) : null
+    interesFijo: planTipoInteres==='importe' ? (parseFloat(document.getElementById('planInteresFijo').value)||0) : null,
+    cuotasManuales: planTipoInteres==='personalizado' ? leerCuotasPersonalizadasPlan() : null
   };
   try{
     await db.collection('planes').add(data);
@@ -864,32 +920,54 @@ async function guardarPlan(){
   }catch(err){ mostrarError(err, 'No se pudo guardar el plan'); }
 }
 function montoDevolverPlan(p){
+  if(p.tipoInteres==='personalizado') return (p.cuotasManuales||[]).reduce((s,v)=>s+v,0);
   return p.tipoInteres==='porcentaje' ? p.montoPrestar + p.montoPrestar*(p.interesPct/100) : p.montoPrestar + p.interesFijo;
 }
-function generarOfertaPdf(planId){
-  const p = PLANES.find(x=>x.id===planId);
+function vistaPreviaPlanPdf(){
+  const nombre = document.getElementById('planNombre').value.trim() || 'Plan sin nombre';
+  const planTemp = {
+    nombre,
+    frecuencia: document.getElementById('planFrecuencia').value,
+    cuotas: parseInt(document.getElementById('planCuotas').value)||1,
+    montoPrestar: parseFloat(document.getElementById('planMontoPrestar').value)||0,
+    tipoInteres: planTipoInteres,
+    interesPct: parseFloat(document.getElementById('planInteresPct').value)||0,
+    interesFijo: parseFloat(document.getElementById('planInteresFijo').value)||0,
+    cuotasManuales: planTipoInteres==='personalizado' ? leerCuotasPersonalizadasPlan() : null
+  };
+  generarOfertaPdf(null, planTemp);
+}
+function generarOfertaPdf(planId, planTemp){
+  const p = planTemp || PLANES.find(x=>x.id===planId);
   if(!p) return;
   const devolver = montoDevolverPlan(p);
-  const cuotaValor = Math.round((devolver/p.cuotas)*100)/100;
+  const montosCuotas = p.tipoInteres==='personalizado' && p.cuotasManuales
+    ? p.cuotasManuales
+    : Array(p.cuotas).fill(Math.round((devolver/p.cuotas)*100)/100);
   const fechaInicio = fechaSugeridaInicio(p.frecuencia);
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   let y = pdfHeader(doc, 18);
-  doc.setFontSize(13); doc.text('Propuesta de préstamo', 14, y+6); y+=18;
-  doc.setFontSize(11);
-  doc.text(`Plan: ${p.nombre}`, 14, y); y+=7;
-  doc.text(`Te prestamos: ${fmt(p.montoPrestar)}`, 14, y); y+=7;
-  doc.text(`Total a devolver: ${fmt(devolver)}  en ${p.cuotas} cuota(s) ${p.frecuencia}(es)`, 14, y); y+=12;
-  doc.setFontSize(10);
-  doc.text('Cuota', 14, y); doc.text('Fecha estimada', 55, y); doc.text('Monto', 120, y);
-  y+=5; doc.line(14,y,196,y); y+=6;
+  doc.setFontSize(14); doc.setFont(undefined,'bold');
+  doc.text('Propuesta de préstamo', 14, y+6); y+=16;
+  doc.setFont(undefined,'normal'); doc.setFontSize(11);
+  const uniformeOferta = montosCuotas.every(m=>Math.abs(m-montosCuotas[0])<0.5);
+  if(uniformeOferta){
+    doc.text(`Préstamo de ${fmt(p.montoPrestar)} — se devuelve en ${p.cuotas} cuota(s) ${p.frecuencia}(es) de ${fmt(montosCuotas[0])}`, 14, y);
+  } else {
+    doc.text(`Préstamo de ${fmt(p.montoPrestar)} — se devuelve en ${p.cuotas} cuota(s) ${p.frecuencia}(es)`, 14, y);
+  }
+  y+=14;
+  doc.setFontSize(12);
   for(let i=0;i<p.cuotas;i++){
     let fecha;
     if(p.frecuencia==='semanal') fecha = addDias(fechaInicio, i*7);
     else if(p.frecuencia==='quincenal') fecha = addDias(fechaInicio, i*15);
     else fecha = addMeses(fechaInicio, i);
-    doc.text(`#${i+1}`, 14, y); doc.text(fmtFecha(fecha), 55, y); doc.text(fmt(cuotaValor), 120, y);
-    y+=7; if(y>270){ doc.addPage(); y=20; }
+    let linea = `Cuota ${i+1}   —   fecha a pagar: ${fmtFecha(fecha)}`;
+    if(!uniformeOferta) linea += `   —   ${fmt(montosCuotas[i]||0)}`;
+    doc.text(linea, 18, y);
+    y+=10; if(y>265){ doc.addPage(); y=20; }
   }
   y+=6;
   doc.setFontSize(8); doc.setTextColor(120);
@@ -901,7 +979,7 @@ function renderPlanes(){
   if(PLANES.length===0){ tbody.innerHTML = `<tr><td colspan="7" class="empty">Sin planes todavía.</td></tr>`; return; }
   tbody.innerHTML = PLANES.map(p=>{
     const devolver = montoDevolverPlan(p);
-    const interesTxt = p.tipoInteres==='porcentaje' ? `${p.interesPct}%` : fmt(p.interesFijo)+' fijo';
+    const interesTxt = p.tipoInteres==='porcentaje' ? `${p.interesPct}%` : p.tipoInteres==='importe' ? fmt(p.interesFijo)+' fijo' : '<span class="badge badge-warn">Manual</span>';
     return `<tr>
       <td>${p.nombre}</td><td>${p.frecuencia}</td><td>${p.cuotas}</td><td>${fmt(p.montoPrestar)}</td><td>${interesTxt}</td><td>${fmt(devolver)}</td>
       <td>
@@ -923,6 +1001,8 @@ function setCamposPrestamoHabilitados(habilitado){
   });
   document.getElementById('planesChips').style.opacity = habilitado ? '1' : '.4';
   document.getElementById('planesChips').style.pointerEvents = habilitado ? 'auto' : 'none';
+  document.getElementById('pCuotasPersonalizadasList').style.opacity = habilitado ? '1' : '.4';
+  document.getElementById('pCuotasPersonalizadasList').style.pointerEvents = habilitado ? 'auto' : 'none';
 }
 function editarPrestamo(prestamoId){
   const p = PRESTAMOS.find(x=>x.id===prestamoId);
@@ -940,12 +1020,16 @@ function editarPrestamo(prestamoId){
   document.getElementById('pMontoPrestado').value = p.montoPrestado;
   document.getElementById('pModoCalculo').value = p.modoCalculo;
   if(p.modoCalculo==='auto'){ document.getElementById('pComision').value = p.comisionPct; }
+  else if(p.modoCalculo==='personalizado'){ /* se rellena abajo con los montos reales de cada cuota */ }
   else { document.getElementById('pMontoManual').value = p.montoTotal; }
   document.getElementById('pCobraMora').checked = p.aplicaMora!==false;
   document.getElementById('pMoraTipo').value = p.moraTipo||'porcentaje';
   document.getElementById('pMoraValor').value = p.moraValor||0;
   document.getElementById('pObs').value = p.observaciones||'';
   toggleModoCalculo(); toggleCobraMora(); recalcPreview();
+  if(p.modoCalculo==='personalizado'){
+    renderCuotasPersonalizadasPrestamo(p.cuotas.map(c=>c.monto));
+  }
   const hayPagos = p.cuotas.some(c=>c.pagado);
   if(hayPagos){
     document.getElementById('pAvisoPagos').style.display = 'block';
@@ -987,6 +1071,7 @@ function openPrestamoModal(clienteIdPre){
   document.getElementById('pModoCalculo').value='auto';
   document.getElementById('pComision').value='';
   document.getElementById('pMontoManual').value='';
+  document.getElementById('pCuotasPersonalizadasList').innerHTML='';
   document.getElementById('pCobraMora').checked = true;
   document.getElementById('pMoraTipo').value = CONFIG.moraTipo||'porcentaje';
   document.getElementById('pMoraValor').value = CONFIG.moraValor||0;
@@ -1009,11 +1094,16 @@ function aplicarPlan(planId, el){
   if(plan.tipoInteres==='porcentaje'){
     document.getElementById('pModoCalculo').value = 'auto';
     document.getElementById('pComision').value = plan.interesPct;
-  } else {
+    toggleModoCalculo();
+  } else if(plan.tipoInteres==='importe'){
     document.getElementById('pModoCalculo').value = 'manual';
     document.getElementById('pMontoManual').value = plan.montoPrestar + plan.interesFijo;
+    toggleModoCalculo();
+  } else {
+    document.getElementById('pModoCalculo').value = 'personalizado';
+    toggleModoCalculo();
+    renderCuotasPersonalizadasPrestamo(plan.cuotasManuales||[]);
   }
-  toggleModoCalculo();
   recalcPreview();
 }
 function fechaSugeridaInicio(frecuencia){
@@ -1034,18 +1124,56 @@ function sugerirComision(){
   recalcPreview();
 }
 function toggleModoCalculo(){
-  const auto = document.getElementById('pModoCalculo').value==='auto';
-  document.getElementById('bloqueAuto').style.display = auto?'block':'none';
-  document.getElementById('bloqueManual').style.display = auto?'none':'block';
+  const modo = document.getElementById('pModoCalculo').value;
+  document.getElementById('bloqueAuto').style.display = modo==='auto'?'block':'none';
+  document.getElementById('bloqueManual').style.display = modo==='manual'?'block':'none';
+  document.getElementById('bloquePersonalizado').style.display = modo==='personalizado'?'block':'none';
+  document.getElementById('pFilaCuotaUniforme').style.display = modo==='personalizado'?'none':'flex';
+  if(modo==='personalizado') renderCuotasPersonalizadasPrestamo();
   recalcPreview();
 }
 function toggleCobraMora(){
   document.getElementById('bloqueMora').style.display = document.getElementById('pCobraMora').checked ? 'grid' : 'none';
 }
+function onPCuotasChange(){
+  sugerirComision();
+  if(document.getElementById('pModoCalculo').value==='personalizado') renderCuotasPersonalizadasPrestamo();
+}
+function renderCuotasPersonalizadasPrestamo(valoresIniciales){
+  const cuotas = parseInt(document.getElementById('pCuotas').value)||1;
+  const cont = document.getElementById('pCuotasPersonalizadasList');
+  const valoresPrevios = valoresIniciales || Array.from(cont.querySelectorAll('.cuotaManualInput')).map(i=>i.value);
+  let html = '';
+  for(let i=0;i<cuotas;i++){
+    const val = valoresPrevios[i] || '';
+    html += `<div class="row" style="justify-content:space-between;align-items:center;margin:6px 0">
+      <span style="min-width:62px">Cuota ${i+1}</span>
+      <input type="number" step="0.01" class="cuotaManualInput" data-idx="${i}" value="${val}" oninput="actualizarPorcentajesCuotasPrestamo()" style="flex:1;max-width:150px;border:1px solid var(--line);border-radius:6px;padding:6px 8px">
+      <span class="muted" style="min-width:55px;text-align:right" id="pPctCuota${i}">0%</span>
+    </div>`;
+  }
+  cont.innerHTML = html;
+  actualizarPorcentajesCuotasPrestamo();
+}
+function leerCuotasPersonalizadasPrestamo(){
+  return Array.from(document.querySelectorAll('#pCuotasPersonalizadasList .cuotaManualInput')).map(i=>parseFloat(i.value)||0);
+}
+function actualizarPorcentajesCuotasPrestamo(){
+  const monto = parseFloat(document.getElementById('pMontoPrestado').value)||0;
+  const valores = leerCuotasPersonalizadasPrestamo();
+  const total = valores.reduce((s,v)=>s+v,0);
+  valores.forEach((v,i)=>{
+    const pct = monto>0 ? (v/monto*100).toFixed(1) : '0';
+    const el = document.getElementById('pPctCuota'+i);
+    if(el) el.textContent = pct+'%';
+  });
+  document.getElementById('prevTotal').textContent = fmt(total);
+}
 function recalcPreview(){
   const monto = parseFloat(document.getElementById('pMontoPrestado').value)||0;
   const cuotas = parseInt(document.getElementById('pCuotas').value)||1;
   const modo = document.getElementById('pModoCalculo').value;
+  if(modo==='personalizado'){ actualizarPorcentajesCuotasPrestamo(); return; }
   let total = modo==='auto' ? monto + monto*((parseFloat(document.getElementById('pComision').value)||0)/100) : (parseFloat(document.getElementById('pMontoManual').value)||0);
   document.getElementById('prevTotal').textContent = fmt(total);
   document.getElementById('prevCuota').value = (total/cuotas).toFixed(2);
@@ -1083,10 +1211,14 @@ async function guardarPrestamo(){
   const fechaInicio = document.getElementById('pFechaInicio').value;
   const montoPrestado = parseFloat(document.getElementById('pMontoPrestado').value)||0;
   const modoCalculo = document.getElementById('pModoCalculo').value;
+  const montosPersonalizados = modoCalculo==='personalizado' ? leerCuotasPersonalizadasPrestamo() : null;
   const montoTotal = modoCalculo==='auto'
     ? montoPrestado + montoPrestado*((parseFloat(document.getElementById('pComision').value)||0)/100)
-    : (parseFloat(document.getElementById('pMontoManual').value)||0);
+    : modoCalculo==='personalizado'
+      ? montosPersonalizados.reduce((s,v)=>s+v,0)
+      : (parseFloat(document.getElementById('pMontoManual').value)||0);
   if(!montoPrestado || !montoTotal || !fechaInicio){ toast('Completá monto y fecha', true); return; }
+  if(modoCalculo==='personalizado' && montosPersonalizados.some(v=>!v)){ toast('Completá el monto de todas las cuotas', true); return; }
   const montoCuota = Math.round((montoTotal/cantCuotas)*100)/100;
   const aplicaMora = document.getElementById('pCobraMora').checked;
 
@@ -1128,7 +1260,8 @@ async function guardarPrestamo(){
           if(frecuencia==='semanal') fecha = addDias(fechaInicio, i*7);
           else if(frecuencia==='quincenal') fecha = addDias(fechaInicio, i*15);
           else fecha = addMeses(fechaInicio, i);
-          batch.set(db.collection('prestamos').doc(idEditando).collection('cuotas').doc(), { numero:i+1, fechaVencimiento:fecha, monto:montoCuota, pagado:false });
+          const montoEstaCuota = montosPersonalizados ? montosPersonalizados[i] : montoCuota;
+          batch.set(db.collection('prestamos').doc(idEditando).collection('cuotas').doc(), { numero:i+1, fechaVencimiento:fecha, monto:montoEstaCuota, pagado:false });
         }
         await batch.commit();
       }
@@ -1149,7 +1282,8 @@ async function guardarPrestamo(){
         if(frecuencia==='semanal') fecha = addDias(fechaInicio, i*7);
         else if(frecuencia==='quincenal') fecha = addDias(fechaInicio, i*15);
         else fecha = addMeses(fechaInicio, i);
-        batch.set(ref.collection('cuotas').doc(), { numero:i+1, fechaVencimiento:fecha, monto:montoCuota, pagado:false });
+        const montoEstaCuota = montosPersonalizados ? montosPersonalizados[i] : montoCuota;
+        batch.set(ref.collection('cuotas').doc(), { numero:i+1, fechaVencimiento:fecha, monto:montoEstaCuota, pagado:false });
       }
       await batch.commit();
       closeModal('modalPrestamo');
@@ -1308,21 +1442,30 @@ function descargarPdfPrestamo(){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   let y = pdfHeader(doc, 18);
-  doc.setFontSize(13); doc.text('Cronograma de pagos', 14, y+6); y+=16;
-  doc.setFontSize(11);
-  doc.text(`N° de préstamo: ${formatNumeroPrestamo(p.numero)}`, 14, y); y+=7;
-  doc.text(`Cliente: ${cliente?cliente.nombre:'—'}`, 14, y); y+=7;
-  doc.text(`Plan: ${p.frecuencia} - ${p.cantCuotas} cuotas`, 14, y); y+=7;
-  doc.text(`Prestado: ${fmt(p.montoPrestado)}   Total a devolver: ${fmt(p.montoTotal)}`, 14, y); y+=12;
-  doc.setFontSize(10);
-  doc.text('Cuota', 14, y); doc.text('Vencimiento', 55, y); doc.text('Monto', 105, y); doc.text('Estado', 150, y);
-  y+=5; doc.line(14,y,196,y); y+=6;
+  doc.setFontSize(10); doc.setTextColor(130);
+  doc.text(`Préstamo N° ${formatNumeroPrestamo(p.numero)}`, 14, y);
+  doc.setTextColor(0);
+  y+=10;
+  doc.setFontSize(14); doc.setFont(undefined,'bold');
+  doc.text('Cronograma de pagos', 14, y); y+=10;
+  doc.setFont(undefined,'normal'); doc.setFontSize(11);
+  doc.text(`Cliente: ${cliente?cliente.nombre:'—'}`, 14, y); y+=9;
+  const montos = p.cuotas.map(c=>c.monto);
+  const uniforme = montos.every(m=>Math.abs(m-montos[0])<0.5);
+  if(uniforme){
+    doc.text(`Préstamo de ${fmt(p.montoPrestado)} — se devuelve en ${p.cantCuotas} cuotas ${p.frecuencia}(es) de ${fmt(montos[0])}`, 14, y);
+  } else {
+    doc.text(`Préstamo de ${fmt(p.montoPrestado)} — se devuelve en ${p.cantCuotas} cuotas ${p.frecuencia}(es)`, 14, y);
+  }
+  y+=14;
+  doc.setFontSize(12);
   p.cuotas.forEach(c=>{
-    doc.text(`#${c.numero}`, 14, y); doc.text(fmtFecha(c.fechaVencimiento), 55, y);
-    doc.text(fmt(c.monto), 105, y); doc.text(c.pagado?'Pagada':'Pendiente', 150, y);
-    y+=7; if(y>270){ doc.addPage(); y=20; }
+    let linea = `Cuota ${c.numero}   —   fecha a pagar: ${fmtFecha(c.fechaVencimiento)}`;
+    if(!uniforme) linea += `   —   ${fmt(c.monto)}`;
+    doc.text(linea, 18, y);
+    y+=10; if(y>265){ doc.addPage(); y=20; }
   });
-  y+=6;
+  y+=8;
   if(y>250){ doc.addPage(); y=20; }
   if(p.aplicaMora!==false){
     const textoMora = p.moraTipo==='fijo'
