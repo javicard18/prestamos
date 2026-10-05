@@ -146,8 +146,7 @@
     <section id="tab-inicio">
       <div class="statGrid" id="dashStats" style="margin-bottom:18px;"></div>
       <div class="card"><h2>⚠️ Atrasadas</h2><div id="listAtrasadas"></div></div>
-      <div class="card"><h2>📅 Vencen hoy</h2><div id="listHoy"></div></div>
-      <div class="card"><h2>🗓️ Próximos 7 días</h2><div id="list7dias"></div></div>
+      <div class="card"><h2>📆 Cobros de este mes</h2><div id="listMes"></div></div>
     </section>
 
     <section id="tab-clientes" style="display:none">
@@ -172,7 +171,7 @@
         </div>
         <div class="field" style="margin-top:12px;max-width:320px"><input type="text" id="buscarPrestamo" placeholder="Buscar por cliente o N° (ej: 001)" oninput="renderPrestamos()"></div>
         <div class="tableWrap"><table style="margin-top:12px">
-          <thead><tr><th>Ref.</th><th>Cliente</th><th>Plan</th><th>Total</th><th>Cobrado</th><th>Mora</th><th>Estado</th><th></th></tr></thead>
+          <thead><tr><th>Ref.</th><th>Cliente</th><th>Plan</th><th>Próx. vence</th><th>Total</th><th>Cobrado</th><th>Mora</th><th>Estado</th><th></th></tr></thead>
           <tbody id="tablaPrestamos"></tbody>
         </table></div>
       </div>
@@ -645,8 +644,8 @@ function estadoCuota(cuota){
 }
 
 function renderDashboard(){
-  const hoy = todayStr(); const en7 = addDias(hoy,7);
-  let atrasadas=[], hoyList=[], sem=[];
+  const hoy = todayStr(); const mesActual = hoy.slice(0,7);
+  let atrasadas=[], mesList=[];
   let totalPorCobrar=0, totalCobrado=0;
   PRESTAMOS.forEach(p=>{
     const cliente = CLIENTES.find(c=>c.id===p.clienteId);
@@ -655,8 +654,7 @@ function renderDashboard(){
       totalPorCobrar += cuota.monto;
       const row = {p, cuota, cliente};
       if(cuota.fechaVencimiento < hoy) atrasadas.push(row);
-      else if(cuota.fechaVencimiento === hoy) hoyList.push(row);
-      else if(cuota.fechaVencimiento <= en7) sem.push(row);
+      else if(cuota.fechaVencimiento.slice(0,7)===mesActual) mesList.push(row);
     });
   });
   document.getElementById('dashStats').innerHTML = `
@@ -673,9 +671,10 @@ function renderDashboard(){
           if(r.p.aplicaMora===false){ moraCell='<td class="muted">no cobra</td>'; }
           else { const m = calcularMoraSugerida(r.cuota, r.p); moraCell = `<td>${m.dias}d · ${fmt(m.monto)}</td>`; }
         }
-        return `<tr>
+        const esHoy = r.cuota.fechaVencimiento===hoy;
+        return `<tr${esHoy?' style="background:var(--warn-bg)"':''}>
           <td class="clickable" onclick="verCliente('${r.p.clienteId}')">${r.cliente?r.cliente.nombre:'—'}</td>
-          <td>#${r.cuota.numero}</td><td>${fmtFecha(r.cuota.fechaVencimiento)}</td><td>${fmt(r.cuota.monto)}</td>
+          <td>#${r.cuota.numero}</td><td>${fmtFecha(r.cuota.fechaVencimiento)}${esHoy?' <span class="badge badge-warn">HOY</span>':''}</td><td>${fmt(r.cuota.monto)}</td>
           ${moraCell}
           <td>
             <button class="btn btn-ghost btn-sm" onclick="abrirCobro('${r.p.id}',${r.cuota.numero})">Cobrar</button>
@@ -685,8 +684,7 @@ function renderDashboard(){
       }).join('') + '</tbody></table></div>';
   };
   document.getElementById('listAtrasadas').innerHTML = renderRows(atrasadas, true, true);
-  document.getElementById('listHoy').innerHTML = renderRows(hoyList, false, false);
-  document.getElementById('list7dias').innerHTML = renderRows(sem, false, false);
+  document.getElementById('listMes').innerHTML = renderRows(mesList, false, false);
 }
 
 function openClienteModal(cliente){
@@ -1133,17 +1131,26 @@ function renderPrestamos(){
       return nombre.includes(q) || ref.includes(q) || ref.replace('#','').includes(q.replace('#',''));
     });
   }
-  if(lista.length===0){ tbody.innerHTML = `<tr><td colspan="8" class="empty">${q?'Sin resultados.':'Sin préstamos todavía.'}</td></tr>`; return; }
+  if(lista.length===0){ tbody.innerHTML = `<tr><td colspan="9" class="empty">${q?'Sin resultados.':'Sin préstamos todavía.'}</td></tr>`; return; }
+  const hoy = todayStr();
   tbody.innerHTML = lista.map(p=>{
     const cliente = CLIENTES.find(c=>c.id===p.clienteId);
     const cobrado = p.cuotas.filter(c=>c.pagado).reduce((s,c)=>s+(c.montoPagado||c.monto),0);
-    const atrasadas = p.cuotas.filter(c=>!c.pagado && c.fechaVencimiento<todayStr()).length;
+    const atrasadas = p.cuotas.filter(c=>!c.pagado && c.fechaVencimiento<hoy).length;
     const finalizado = p.cuotas.every(c=>c.pagado);
     let estadoBadge = finalizado ? '<span class="badge badge-ok">Finalizado</span>' : atrasadas>0 ? `<span class="badge badge-bad">${atrasadas} atrasada(s)</span>` : '<span class="badge badge-warn">Activo</span>';
+    const pendientes = p.cuotas.filter(c=>!c.pagado).sort((a,b)=>a.fechaVencimiento.localeCompare(b.fechaVencimiento));
+    let proxVence = '<span class="muted">—</span>';
+    if(pendientes.length){
+      const prox = pendientes[0];
+      const atrasada = prox.fechaVencimiento<hoy;
+      proxVence = `<span style="${atrasada?'color:var(--bad);font-weight:600':(prox.fechaVencimiento===hoy?'color:var(--warn);font-weight:600':'')}">${fmtFecha(prox.fechaVencimiento)}</span>`;
+    }
     return `<tr>
       <td>${formatNumeroPrestamo(p.numero)}</td>
       <td class="clickable" onclick="verCliente('${p.clienteId}')">${cliente?cliente.nombre:'—'}</td>
       <td>${p.frecuencia} · ${p.cantCuotas}c</td>
+      <td>${proxVence}</td>
       <td>${fmt(p.montoTotal)}</td><td>${fmt(cobrado)}</td>
       <td>${p.aplicaMora===false ? '<span class="muted">No</span>' : '<span class="muted">Sí</span>'}</td>
       <td>${estadoBadge}</td>
