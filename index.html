@@ -317,7 +317,7 @@
   <div class="modal">
     <button class="modalClose" onclick="closeModal('modalPlan')">×</button>
     <h3>Nuevo plan</h3>
-    <div class="field"><label>Nombre</label><input type="text" id="planNombre" placeholder="Ej: 2 cuotas $100.000"></div>
+    <div class="field"><label>Nombre</label><input type="text" id="planNombre" placeholder="Ej: Plan chico mensual"><p class="helpTxt">Es solo para reconocerlo en la lista. El monto del préstamo se carga más abajo, en "Importe a prestar".</p></div>
     <div class="grid2">
       <div class="field">
         <label>Frecuencia</label>
@@ -899,9 +899,12 @@ function recalcDesdeCuotaPlan(){
   document.getElementById('planPrevDevolver').textContent = fmt(devolver);
 }
 async function guardarPlan(){
-  const nombre = document.getElementById('planNombre').value.trim();
-  if(!nombre){ toast('Falta el nombre del plan', true); return; }
   const montoPrestar = parseFloat(document.getElementById('planMontoPrestar').value)||0;
+  if(!montoPrestar){ toast('Falta el importe a prestar', true); return; }
+  const cuotasNum = parseInt(document.getElementById('planCuotas').value)||1;
+  const frecuenciaNom = document.getElementById('planFrecuencia').value;
+  let nombre = document.getElementById('planNombre').value.trim();
+  if(!nombre){ nombre = `${frecuenciaNom} ${cuotasNum}x ${fmt(montoPrestar)}`; }
   const data = {
     nombre,
     frecuencia: document.getElementById('planFrecuencia').value,
