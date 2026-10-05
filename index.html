@@ -82,7 +82,14 @@
   .modal h3{font-size:18px;margin-bottom:16px;color:var(--bg);}
   .modalClose{float:right;background:none;border:none;font-size:20px;color:var(--ink-soft);}
   .statGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
-  .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+  .stat{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;padding:14px 16px;box-shadow:0 1px 3px rgba(15,42,46,.06);}
+  .stat.accent-gold{border-left-color:var(--gold);}
+  .stat.accent-ok{border-left-color:var(--ok);}
+  .stat.accent-bad{border-left-color:var(--bad);}
+  .stat.accent-navy{border-left-color:var(--bg);}
+  .stat.accent-gold .num{color:var(--gold-dark);}
+  .stat.accent-ok .num{color:var(--ok);}
+  .stat.accent-bad .num{color:var(--bad);}
   .stat .num{font-size:22px;font-weight:700;color:var(--bg);font-family:Georgia,serif;}
   .stat .lab{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;}
   #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg);color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;z-index:200;display:none;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:90vw;}
@@ -646,22 +653,31 @@ function estadoCuota(cuota){
 function renderDashboard(){
   const hoy = todayStr(); const mesActual = hoy.slice(0,7);
   let atrasadas=[], mesList=[];
-  let totalPorCobrar=0, totalCobrado=0;
+  let porCobrarMes=0, cobradoMes=0, montoAtrasado=0;
   PRESTAMOS.forEach(p=>{
     const cliente = CLIENTES.find(c=>c.id===p.clienteId);
     p.cuotas.forEach(cuota=>{
-      if(cuota.pagado){ totalCobrado += cuota.montoPagado||cuota.monto; return; }
-      totalPorCobrar += cuota.monto;
+      if(cuota.pagado){
+        if((cuota.fechaPago||'').slice(0,7)===mesActual) cobradoMes += cuota.montoPagado||cuota.monto;
+        return;
+      }
       const row = {p, cuota, cliente};
-      if(cuota.fechaVencimiento < hoy) atrasadas.push(row);
-      else if(cuota.fechaVencimiento.slice(0,7)===mesActual) mesList.push(row);
+      if(cuota.fechaVencimiento < hoy){
+        atrasadas.push(row);
+        montoAtrasado += cuota.monto;
+        if(cuota.fechaVencimiento.slice(0,7)===mesActual) porCobrarMes += cuota.monto;
+      }
+      else if(cuota.fechaVencimiento.slice(0,7)===mesActual){
+        mesList.push(row);
+        porCobrarMes += cuota.monto;
+      }
     });
   });
   document.getElementById('dashStats').innerHTML = `
-    <div class="stat"><div class="num">${fmt(totalPorCobrar)}</div><div class="lab">Por cobrar</div></div>
-    <div class="stat"><div class="num">${fmt(totalCobrado)}</div><div class="lab">Cobrado</div></div>
-    <div class="stat"><div class="num">${atrasadas.length}</div><div class="lab">Cuotas atrasadas</div></div>
-    <div class="stat"><div class="num">${CLIENTES.length}</div><div class="lab">Clientes</div></div>`;
+    <div class="stat accent-gold"><div class="num">${fmt(porCobrarMes)}</div><div class="lab">Por cobrar este mes</div></div>
+    <div class="stat accent-ok"><div class="num">${fmt(cobradoMes)}</div><div class="lab">Cobrado este mes</div></div>
+    <div class="stat ${atrasadas.length>0?'accent-bad':'accent-ok'}"><div class="num">${atrasadas.length} <span style="font-size:14px">(${fmt(montoAtrasado)})</span></div><div class="lab">Cuotas atrasadas</div></div>
+    <div class="stat accent-navy"><div class="num">${CLIENTES.length}</div><div class="lab">Clientes</div></div>`;
   const renderRows = (arr, showMora, esAtrasada)=>{
     if(arr.length===0) return '<div class="empty">Nada por acá.</div>';
     return `<div class="tableWrap"><table><thead><tr><th>Cliente</th><th>Cuota</th><th>Vence</th><th>Monto</th>${showMora?'<th>Mora</th>':''}<th></th></tr></thead><tbody>` +
@@ -1421,10 +1437,10 @@ function renderEstadisticas(){
   }));
   document.getElementById('statMesTitulo').textContent = `Este mes (${nombreMes(mesActual)})`;
   document.getElementById('statsMesActual').innerHTML = `
-    <div class="stat"><div class="num">${fmt(datosMes.cobrado)}</div><div class="lab">Cobrado este mes</div></div>
-    <div class="stat"><div class="num">${fmt(pendienteMes)}</div><div class="lab">Pendiente de cobrar (vence este mes)</div></div>
-    <div class="stat"><div class="num" style="color:var(--ok)">${fmt(datosMes.ganancia)}</div><div class="lab">Ganancia real (interés)</div></div>
-    <div class="stat"><div class="num">${fmt(datosMes.prestado)}</div><div class="lab">Prestado nuevo este mes</div></div>`;
+    <div class="stat accent-ok"><div class="num">${fmt(datosMes.cobrado)}</div><div class="lab">Cobrado este mes</div></div>
+    <div class="stat accent-gold"><div class="num">${fmt(pendienteMes)}</div><div class="lab">Por cobrar este mes</div></div>
+    <div class="stat accent-ok"><div class="num">${fmt(datosMes.ganancia)}</div><div class="lab">Ganancia real (interés)</div></div>
+    <div class="stat accent-navy"><div class="num">${fmt(datosMes.prestado)}</div><div class="lab">Prestado nuevo este mes</div></div>`;
 
   const meses = Object.keys(porMes).sort().reverse().slice(0,12);
   const tbody = document.getElementById('tablaHistorialMensual');
@@ -1434,11 +1450,11 @@ function renderEstadisticas(){
   }).join('');
 
   document.getElementById('statsGenerales').innerHTML = `
+    <div class="stat accent-navy"><div class="num">${fmt(totalPrestado)}</div><div class="lab">Capital total prestado (histórico)</div></div>
+    <div class="stat accent-ok"><div class="num">${fmt(totalCobrado)}</div><div class="lab">Total cobrado (histórico)</div></div>
+    <div class="stat accent-gold"><div class="num">${fmt(totalPorCobrar)}</div><div class="lab">Total por cobrar (todos los meses)</div></div>
     <div class="stat"><div class="num">${PRESTAMOS.length}</div><div class="lab">Préstamos totales</div></div>
     <div class="stat"><div class="num">${cuotasTotales}</div><div class="lab">Cuotas totales</div></div>
-    <div class="stat"><div class="num">${fmt(totalPrestado)}</div><div class="lab">Total prestado (histórico)</div></div>
-    <div class="stat"><div class="num">${fmt(totalCobrado)}</div><div class="lab">Total cobrado (histórico)</div></div>
-    <div class="stat"><div class="num">${fmt(totalPorCobrar)}</div><div class="lab">Total por cobrar</div></div>
     <div class="stat"><div class="num">${CLIENTES.length}</div><div class="lab">Clientes registrados</div></div>`;
   document.getElementById('statDesde').value = addDias(todayStr(),-30);
   document.getElementById('statHasta').value = todayStr();
