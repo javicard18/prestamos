@@ -334,7 +334,7 @@
     <div class="field" id="planInteresFijoBox" style="display:none"><label>Interés fijo ($)</label><input type="number" step="0.01" id="planInteresFijo" oninput="recalcPlanPreview()"></div>
     <div class="card" style="background:var(--panel-2);padding:12px 14px">
       <div class="row" style="justify-content:space-between"><span class="muted">Importe a devolver</span><b id="planPrevDevolver">$0</b></div>
-      <div class="row" style="justify-content:space-between"><span class="muted">Valor de cada cuota</span><b id="planPrevCuota">$0</b></div>
+      <div class="row" style="justify-content:space-between;align-items:center"><span class="muted">Valor de cada cuota (editable)</span><input type="number" step="0.01" id="planPrevCuota" oninput="recalcDesdeCuotaPlan()" style="max-width:150px;text-align:right;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-weight:600"></div>
     </div>
     <button class="btn btn-gold btn-block" id="btnGuardarPlan" onclick="conBloqueoBoton('btnGuardarPlan', guardarPlan)" style="margin-top:12px">Guardar</button>
   </div>
@@ -378,7 +378,7 @@
     </div>
     <div class="card" style="background:var(--panel-2);padding:12px 14px;margin:10px 0">
       <div class="row" style="justify-content:space-between"><span class="muted">Total a devolver</span><b id="prevTotal">$0</b></div>
-      <div class="row" style="justify-content:space-between"><span class="muted">Valor de cada cuota</span><b id="prevCuota">$0</b></div>
+      <div class="row" style="justify-content:space-between;align-items:center"><span class="muted">Valor de cada cuota (editable)</span><input type="number" step="0.01" id="prevCuota" oninput="recalcDesdeCuotaPrestamo()" style="max-width:150px;text-align:right;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-weight:600"></div>
     </div>
     <div class="checkline"><input type="checkbox" id="pCobraMora" checked onchange="toggleCobraMora()"><label for="pCobraMora">Este préstamo cobra mora por atraso</label></div>
     <div id="bloqueMora" class="grid2">
@@ -813,7 +813,19 @@ function recalcPlanPreview(){
     devolver = monto + fijo;
   }
   document.getElementById('planPrevDevolver').textContent = fmt(devolver);
-  document.getElementById('planPrevCuota').textContent = fmt(devolver/cuotas);
+  document.getElementById('planPrevCuota').value = (devolver/cuotas).toFixed(2);
+}
+function recalcDesdeCuotaPlan(){
+  const monto = parseFloat(document.getElementById('planMontoPrestar').value)||0;
+  const cuotas = parseInt(document.getElementById('planCuotas').value)||1;
+  const cuotaValor = parseFloat(document.getElementById('planPrevCuota').value)||0;
+  const devolver = cuotaValor*cuotas;
+  if(planTipoInteres==='porcentaje'){
+    document.getElementById('planInteresPct').value = monto>0 ? Math.round(((devolver-monto)/monto*100)*100)/100 : 0;
+  } else {
+    document.getElementById('planInteresFijo').value = Math.round((devolver-monto)*100)/100;
+  }
+  document.getElementById('planPrevDevolver').textContent = fmt(devolver);
 }
 async function guardarPlan(){
   const nombre = document.getElementById('planNombre').value.trim();
@@ -1020,7 +1032,20 @@ function recalcPreview(){
   const modo = document.getElementById('pModoCalculo').value;
   let total = modo==='auto' ? monto + monto*((parseFloat(document.getElementById('pComision').value)||0)/100) : (parseFloat(document.getElementById('pMontoManual').value)||0);
   document.getElementById('prevTotal').textContent = fmt(total);
-  document.getElementById('prevCuota').textContent = fmt(total/cuotas);
+  document.getElementById('prevCuota').value = (total/cuotas).toFixed(2);
+}
+function recalcDesdeCuotaPrestamo(){
+  const monto = parseFloat(document.getElementById('pMontoPrestado').value)||0;
+  const cuotas = parseInt(document.getElementById('pCuotas').value)||1;
+  const modo = document.getElementById('pModoCalculo').value;
+  const cuotaValor = parseFloat(document.getElementById('prevCuota').value)||0;
+  const total = cuotaValor*cuotas;
+  if(modo==='auto'){
+    document.getElementById('pComision').value = monto>0 ? Math.round(((total-monto)/monto*100)*100)/100 : 0;
+  } else {
+    document.getElementById('pMontoManual').value = total.toFixed(2);
+  }
+  document.getElementById('prevTotal').textContent = fmt(total);
 }
 function formatNumeroPrestamo(n){ return n ? ('#'+String(n).padStart(3,'0')) : '—'; }
 async function obtenerProximoNumeroPrestamo(){
